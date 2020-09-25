@@ -1,17 +1,29 @@
-<?xml version="1.0" encoding="utf-8"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"
-    xmlns:dc="http://purl.org/dc/elements/1.1/">
-    <channel>
-        <title>Pure Trade-offs</title>
-        <link>https://site.a64.work</link>
-        <description><![CDATA[Pursuing pureness without being autistic]]></description>
-        <atom:link href="https://site.a64.work/rss.xml" rel="self"
-                   type="application/rss+xml" />
-        <lastBuildDate>Wed, 23 Sep 2020 00:00:00 UT</lastBuildDate>
-        <item>
-    <title>Monkey-patching Vue.js from a Browser Addon</title>
-    <link>https://site.a64.work/posts/2020-09-23-monkey-patching-vuejs.html</link>
-    <description><![CDATA[<h1>Monkey-patching Vue.js from a Browser Addon</h1>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Pure Trade Offs - Monkey-patching Vue.js from a Browser Addon</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax_highlight.css" />
+  </head>
+  <body>
+    <header>
+      <div class="logo">
+        <a href="../">Pure Trade-offs</a>
+      </div>
+      <nav>
+        <a href="../blogs.html">blogs</a>
+<a href="../projects.html">projects</a>
+<a href="../about.html">about</a>
+
+        <a href="../rss.xml">rss</a>
+      </nav>
+    </header>
+
+    <main role="main">
+      <h1>Monkey-patching Vue.js from a Browser Addon</h1>
 <article>
   <section class="header">
     Posted on September 23, 2020
@@ -53,52 +65,19 @@
 <p>That’s it. Enjoy!</p>
   </section>
 </article>
-]]></description>
-    <pubDate>Wed, 23 Sep 2020 00:00:00 UT</pubDate>
-    <guid>https://site.a64.work/posts/2020-09-23-monkey-patching-vuejs.html</guid>
-    <dc:creator>autrim64</dc:creator>
-</item>
-<item>
-    <title>Sane Media Files Management using Git-Annex</title>
-    <link>https://site.a64.work/posts/2020-08-17-sane-media-management.html</link>
-    <description><![CDATA[<h1>Sane Media Files Management using Git-Annex</h1>
-<article>
-  <section class="header">
-    Posted on August 17, 2020
-    
-  </section>
-  <section>
-    <h2 id="problem-statement">Problem statement</h2>
-<p>Building up your collection of video and music feels good. But when you need to actually find THAT file, lying somewhere in your stack of files, you can only hope your memory doesn’t fail you.</p>
-<p>So, you did the following …</p>
-<ul>
-<li>organize them into directories, by categories or whatever fancy scheme you come up with</li>
-<li>try to encode as much info into filename so that a file search would hit</li>
-</ul>
-<p>However, as your collection grows beyond terrabytes, these methods start to fail. You encounter more and more files that you cannot decide which directory it should go to. And file search becomes increasing slow. And these methods don’t work if your files are spanned across multiple drives, NASs or even some blu-ray discs.</p>
-<p>I had all of these headaches until I find <a href="https://git-annex.branchable.com">git-annex</a>. It solved all my problems regarding media file management altogether.</p>
-<h2 id="how-git-anenx-solves-it">How git-anenx solves it</h2>
-<p>(For implementation detail, see <a href="https://git-annex.branchable.com/how_it_works/">https://git-annex.branchable.com/how_it_works/</a>)</p>
-<h3 id="files-across-multiple-storage">Files across multiple storage</h3>
-<p>When you add a file using <code>git annex add</code> command, only the metainfo will enter the repository. The actual file will be moved into <code>.git</code> while a symlink is created in its original location. When you push or pull, only the metainfo and symlink is transfered.</p>
-<p>Now you can clone this repository everywhere where you need access to your files. You can access all file’s metainfo(symlink) while the actual file may be on different remote sites. When you need the content of the file,‘git annex get’ command automatically retrieves the file for you as long as you are connected to that remote. You can use <code>git annex drop</code> to remove the local file and git-annex guarantees that at least one site will have the actual content. You can even configure git-annex to automatically keep some number of backup copies across different sites.</p>
-<h3 id="metadata-management">Metadata management</h3>
-<p>Admit it. Filenames are just not enough. Sadly, filesystems today are directory-based rather than tag-based. NTFS supports limited metadata management for media files but Windows sucks. There are also external solutions storing metadata in databases or in propriatary formats, but I cannot depend on these softwares outliving my data.</p>
-<p>With git-annex you can ditch them all. You can add adding metadata and tags to any file within the repository. And the format is open and stable.</p>
-<h2 id="my-git-annex-setup">My git-annex setup</h2>
-<p>I created a single repository named “Annex” to manage all my media files. They are stored in two NAS home servers and also one HDD attached on my main PC. On NAS I used nfs for file sharing as samba does not support symbolic links.</p>
-<p>I also make cold backups using read-only bluray discs. Check <a href="https://git-annex.branchable.com/forum/How_do_I_backup_my_data_to_blue_ray_disks__63__/">this</a> page.</p>
-<p>I am trying to attach sane amount of metadata to my files. I tag the name of person the video is related to, song title of music videos and etc… I also attach field “onair” to store the date when the clip go public as git-annex supports searching using comparison operators (&lt;, &lt;=, &gt;, &gt;=).</p>
-<p>In the migration process, I made a python script to retrieve as many info encoded in the filename. However there are many files that I did not properly name so I have to manually tag them. But the earlier you bite the bullet the less pain you will have in the long run.</p>
-<h2 id="the-next-step">The next step</h2>
-<p>Sadly, there seems to be no file manager integration. Ideally it should automatically retrieve the content of a file when you open a symlink in a git-annex repository. As for now, you will have to use the commandline to do it manually. I am planning on writing an emacs package to enhance dired-mode (I am using emacs as my file manager now) if I have some time. There is existing packages (git-annex.el) though they are not fully automatic and lacks functionalities regarding tagging and searching.</p>
-  </section>
-</article>
-]]></description>
-    <pubDate>Mon, 17 Aug 2020 00:00:00 UT</pubDate>
-    <guid>https://site.a64.work/posts/2020-08-17-sane-media-management.html</guid>
-    <dc:creator>autrim64</dc:creator>
-</item>
 
-    </channel>
-</rss>
+    </main>
+
+    <footer>
+      <div class="footer-links">
+        <a href="https://github.com/wakira">github</a>
+        <a href="https://www.linkedin.com/in/sheng-wang-3b413a91/">linkedin</a>
+        <a href="mailto:autrim64@pm.me">mail</a>
+      </div>
+      <div>
+        Built using
+        <a href="http://jaspervdj.be/hakyll">Hakyll</a>
+      </div>
+    </footer>
+  </body>
+</html>
