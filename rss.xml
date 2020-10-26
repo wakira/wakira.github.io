@@ -7,8 +7,50 @@
         <description><![CDATA[Pursuing pureness without being autistic]]></description>
         <atom:link href="https://site.a64.work/rss.xml" rel="self"
                    type="application/rss+xml" />
-        <lastBuildDate>Wed, 23 Sep 2020 00:00:00 UT</lastBuildDate>
+        <lastBuildDate>Fri, 23 Oct 2020 00:00:00 UT</lastBuildDate>
         <item>
+    <title>Don't Pretend to be Pure</title>
+    <link>https://site.a64.work/posts/2020-10-23-dont-pretend-to-be-pure.html</link>
+    <description><![CDATA[<h1>Don't Pretend to be Pure</h1>
+<article>
+  <section class="header">
+    Posted on October 23, 2020
+    
+  </section>
+  <section>
+    <p>You might have heard of the <a href="https://www.fpcomplete.com/blog/2017/06/readert-design-pattern/">ReaderT design pattern</a> in Haskell. It is a good way to provide global capabilities, such as logging and database access to your application. In short, the code of your application lives inside <code>type App = ReaderT Env IO</code> monad where <code>Env</code> is a record containing some global functions and variables (IORef, MVar…).</p>
+<p>Yes, global mutable states! How terrifying in the nice and pure Haskell world! Luckily, you can create typeclasses for each capabilities you encapsuled and program in mtl-style to recover some level of purity.</p>
+<p>But why does it use IORef when we have StateT? The article argues that</p>
+<ol>
+<li>You lose your state when encountering runtime exception</li>
+<li>Having the entire app living inside StateT is no better than explicitly using mutables</li>
+<li>StateT does not play well with concurrency</li>
+</ol>
+<p>Let me show you another reason we prefer ReaderT with IORef over StateT.</p>
+<h2 id="thread-your-monad-through-an-io-hole">Thread your monad through an IO hole</h2>
+<p>When dealing with some low-level bindings to event-driven runtimes, you will inevitably encounter some functions that have type signatures like <code>(X -&gt; IO a) -&gt; IO b</code>. For example, <code>eventListener :: (Event -&gt; IO a) -&gt; IO EventListener</code> that creates an event listener from a event handler function.</p>
+<p>Notice the explicit use of <code>IO</code> in the first argument. There is no way to “lower” a function of <code>MonadIO m =&gt; Event -&gt; m a</code> to <code>Event -&gt; IO a</code>, which implies that you cannot use <code>App</code> monad in the event handler, right? Well, not exactly. If you have the full knowledge of the monad being a <code>ReaderT Env IO</code> (not using mtl-style), <code>runReaderT</code> can be used.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true"></a><span class="ot">program ::</span> <span class="dt">App</span> ()</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true"></a>program <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true"></a>  <span class="op">...</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true"></a>  env <span class="ot">&lt;-</span> ask</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true"></a>  el <span class="ot">&lt;-</span> liftIO <span class="op">$</span> eventListener <span class="op">$</span> runReaderT handler env</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true"></a>  <span class="op">...</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true"></a> <span class="kw">where</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true"></a><span class="ot">    handler ::</span> <span class="dt">Event</span> <span class="ot">-&gt;</span> <span class="dt">App</span> <span class="dt">Bool</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true"></a>    handler ev <span class="ot">=</span> <span class="op">...</span></span></code></pre></div>
+<p>Simply passing <code>env</code> to <code>runReaderT</code> is enough. Remember that <code>Env</code> itself is immutable (it’s ReaderT after all), using it in any context is safe. Access to variables inside the event handler is proxyed through <code>IORef</code> so that you correctly get the latest value. The whole process is the same as passing pointers to event handlers in C language. Of course if there is concurrency involed, you have to deal with them yourself (such as to use <code>MVar</code> or <code>TVar</code> instead of <code>IORef</code>).</p>
+<p>You cannot do this if it was <code>StateT</code>. If you call <code>evalStateT</code> and pass in the current state, in the handler you got only the copy of the state at the time you register that event listener. In fact, event-driven model and pure states don’t play well together at all!</p>
+<h2 id="dont-pretend-to-be-writing-pure-code">Don’t pretend to be writing pure code</h2>
+<p>The takeaway here is, write in imperative style if you are doing imperative things. After all, Haskell is the best imperative language.</p>
+  </section>
+</article>
+]]></description>
+    <pubDate>Fri, 23 Oct 2020 00:00:00 UT</pubDate>
+    <guid>https://site.a64.work/posts/2020-10-23-dont-pretend-to-be-pure.html</guid>
+    <dc:creator>autrim64</dc:creator>
+</item>
+<item>
     <title>Monkey-patching Vue.js from a Browser Addon</title>
     <link>https://site.a64.work/posts/2020-09-23-monkey-patching-vuejs.html</link>
     <description><![CDATA[<h1>Monkey-patching Vue.js from a Browser Addon</h1>
