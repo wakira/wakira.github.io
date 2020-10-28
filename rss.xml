@@ -19,7 +19,7 @@
   </section>
   <section>
     <p>You might have heard of the <a href="https://www.fpcomplete.com/blog/2017/06/readert-design-pattern/">ReaderT design pattern</a> in Haskell. It is a good way to provide global capabilities, such as logging and database access to your application. In short, the code of your application lives inside <code>type App = ReaderT Env IO</code> monad where <code>Env</code> is a record containing some global functions and variables (IORef, MVar…).</p>
-<p>Yes, global mutable states! How terrifying in the nice and pure Haskell world! Luckily, you can create typeclasses for each capabilities you encapsuled and program in mtl-style to recover some level of purity.</p>
+<p>Yes, global mutable states! How terrifying in the nice and pure Haskell world! Luckily, you can create typeclasses for each capabilities you encapsulated and program in mtl-style to recover some level of purity.</p>
 <p>But why does it use IORef when we have StateT? The article argues that</p>
 <ol>
 <li>You lose your state when encountering runtime exception</li>
@@ -39,7 +39,7 @@
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true"></a> <span class="kw">where</span></span>
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true"></a><span class="ot">    handler ::</span> <span class="dt">Event</span> <span class="ot">-&gt;</span> <span class="dt">App</span> <span class="dt">Bool</span></span>
 <span id="cb1-9"><a href="#cb1-9" aria-hidden="true"></a>    handler ev <span class="ot">=</span> <span class="op">...</span></span></code></pre></div>
-<p>Simply passing <code>env</code> to <code>runReaderT</code> is enough. Remember that <code>Env</code> itself is immutable (it’s ReaderT after all), using it in any context is safe. Access to variables inside the event handler is proxied through <code>IORef</code> so that you correctly get the latest value. The whole process is the same as passing pointers to event handlers in C language. Of course if there is concurrency involed, you have to deal with them yourself (such as to use <code>MVar</code> or <code>TVar</code> instead of <code>IORef</code>).</p>
+<p>Simply passing <code>env</code> to <code>runReaderT</code> is enough. Remember that <code>Env</code> itself is immutable (it’s ReaderT after all), using it in any context is safe. Access to variables inside the event handler is proxied through <code>IORef</code> so that you correctly get the latest value. The whole process is the same as passing pointers to event handlers in C language. Of course if there is concurrency involved, you have to deal with them yourself (such as to use <code>MVar</code> or <code>TVar</code> instead of <code>IORef</code>).</p>
 <p>You cannot do this if it was <code>StateT</code>. If you call <code>evalStateT</code> and pass in the current state, in the handler you got only the copy of the state at the time you register that event listener. In fact, event-driven model and pure states don’t play well together at all!</p>
 <h2 id="dont-pretend-to-be-writing-pure-code">Don’t pretend to be writing pure code</h2>
 <p>The takeaway here is, write in imperative style if you are doing imperative things. If you want to write pure, functional code, use a library with a higher-level abstraction instead. If you have to deal with lower-level bindings, write in imperative style is usually easier than handcrafting an ad-hoc functional layer on top of it. After all, Haskell is the best imperative language.</p>
