@@ -42,19 +42,19 @@
 <h2 id="thread-your-monad-through-an-io-hole">Thread your monad through an IO hole</h2>
 <p>When dealing with some low-level bindings to event-driven runtimes, you will inevitably encounter some functions that have type signatures like <code>(X -&gt; IO a) -&gt; IO b</code>. For example, <code>eventListener :: (Event -&gt; IO a) -&gt; IO EventListener</code> that creates an event listener from a event handler function.</p>
 <p>Notice the explicit use of <code>IO</code> in the first argument. There is no way to “lower” a function of <code>MonadIO m =&gt; Event -&gt; m a</code> to <code>Event -&gt; IO a</code>, which implies that you cannot use <code>App</code> monad in the event handler, right? Well, not exactly. If you have the full knowledge of the monad being a <code>ReaderT Env IO</code> (not using mtl-style), <code>runReaderT</code> can be used.</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true"></a><span class="ot">program ::</span> <span class="dt">App</span> ()</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true"></a>program <span class="ot">=</span> <span class="kw">do</span></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true"></a>  <span class="op">...</span></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true"></a>  env <span class="ot">&lt;-</span> ask</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true"></a>  el <span class="ot">&lt;-</span> liftIO <span class="op">$</span> eventListener <span class="op">$</span> runReaderT handler env</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true"></a>  <span class="op">...</span></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true"></a> <span class="kw">where</span></span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true"></a><span class="ot">    handler ::</span> <span class="dt">Event</span> <span class="ot">-&gt;</span> <span class="dt">App</span> <span class="dt">Bool</span></span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true"></a>    handler ev <span class="ot">=</span> <span class="op">...</span></span></code></pre></div>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ot">program ::</span> <span class="dt">App</span> ()</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>program <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="op">...</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  env <span class="ot">&lt;-</span> ask</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  el <span class="ot">&lt;-</span> liftIO <span class="op">$</span> eventListener <span class="op">$</span> runReaderT handler env</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  <span class="op">...</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a> <span class="kw">where</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="ot">    handler ::</span> <span class="dt">Event</span> <span class="ot">-&gt;</span> <span class="dt">App</span> <span class="dt">Bool</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    handler ev <span class="ot">=</span> <span class="op">...</span></span></code></pre></div>
 <p>Simply passing <code>env</code> to <code>runReaderT</code> is enough. Remember that <code>Env</code> itself is immutable (it’s ReaderT after all), using it in any context is safe. Access to variables inside the event handler is proxied through <code>IORef</code> so that you correctly get the latest value. The whole process is the same as passing pointers to event handlers in C language. Of course if there is concurrency involved, you have to deal with them yourself (such as to use <code>MVar</code> or <code>TVar</code> instead of <code>IORef</code>).</p>
 <p>You cannot do this if it was <code>StateT</code>. If you call <code>evalStateT</code> and pass in the current state, in the handler you got only the copy of the state at the time you register that event listener. In fact, event-driven model and pure states don’t play well together at all!</p>
 <h2 id="dont-pretend-to-be-writing-pure-code">Don’t pretend to be writing pure code</h2>
-<p>The takeaway here is, write in imperative style if you are doing imperative things. If you want to write pure, functional code, use a library with a higher-level abstraction instead. If you have to deal with lower-level bindings, write in imperative style is usually easier than handcrafting an ad-hoc functional layer on top of it. After all, Haskell is the best imperative language.</p>
+<p>The takeaway here is, write in imperative style if you are doing imperative things. If you want to write pure, functional code, use a library with a higher-level abstraction instead. If you have to deal with lower-level bindings, write in imperative style is usually easier than handcrafting an ad-hoc functional layer on top of it. After all, <a href="https://stackoverflow.com/questions/6622524/why-is-haskell-sometimes-referred-to-as-best-imperative-language">Haskell is the best imperative language</a>.</p>
   </section>
 </article>
 
