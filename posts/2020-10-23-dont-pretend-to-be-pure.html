@@ -51,6 +51,7 @@
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a> <span class="kw">where</span></span>
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="ot">    handler ::</span> <span class="dt">Event</span> <span class="ot">-&gt;</span> <span class="dt">App</span> <span class="dt">Bool</span></span>
 <span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    handler ev <span class="ot">=</span> <span class="op">...</span></span></code></pre></div>
+<p>(There is a library called <code>unliftio</code> that do this for you in a more generic way)</p>
 <p>Simply passing <code>env</code> to <code>runReaderT</code> is enough. Remember that <code>Env</code> itself is immutable (it’s ReaderT after all), using it in any context is safe. Access to variables inside the event handler is proxied through <code>IORef</code> so that you correctly get the latest value. The whole process is the same as passing pointers to event handlers in C language. Of course if there is concurrency involved, you have to deal with them yourself (such as to use <code>MVar</code> or <code>TVar</code> instead of <code>IORef</code>).</p>
 <p>You cannot do this if it was <code>StateT</code>. If you call <code>evalStateT</code> and pass in the current state, in the handler you got only the copy of the state at the time you register that event listener. In fact, event-driven model and pure states don’t play well together at all!</p>
 <h2 id="dont-pretend-to-be-writing-pure-code">Don’t pretend to be writing pure code</h2>
