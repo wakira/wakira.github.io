@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Pure Trade Offs - Notes regarding dynamic programming and performance in Haskell</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax_highlight.css" />
+  </head>
+  <body>
+    <header>
+      <div class="logo">
+        <a href="../">Pure Trade-offs</a>
+      </div>
+      <nav>
+        <a href="../blogs.html">blogs</a>
+<a href="../projects.html">projects</a>
+<a href="../about.html">about</a>
+
+        <a target="_blank" href="../rss.xml">rss</a>
+      </nav>
+    </header>
+
+    <main role="main">
+      <h1>Notes regarding dynamic programming and performance in Haskell</h1>
+<article>
+  <section class="header">
+    Posted on April  2, 2022
+    
+  </section>
+  <section>
+    <p>As some of you may know, some competitive programming sites allow you to use “exotic” languages.
+Recently I spent some of my spare time solving the HackerRank’s Interview Preparation Kit challenges <a href="https://github.com/wakira/hackerrank-haskell">in Haskell</a>.</p>
+<p>In this post I will talk about writing dynamic programming algorithms in Haskell. Using <a href="https://www.hackerrank.com/challenges/decibinary-numbers">this problem</a> as an example.</p>
+<h2 id="the-solution">The solution</h2>
+<p>Let’s go straight to the solution.</p>
+<p>Let f(i, j) be the number of decibinaries that has value of i using the maximum base of 2<sup>j</sup> (in other words,
+using the maximum of j+1 digits). We can compute f(i, j) by</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>f i j <span class="op">|</span> <span class="dv">0</span> <span class="op">&lt;=</span> i <span class="op">&amp;&amp;</span> i <span class="op">&lt;=</span> <span class="dv">9</span> <span class="op">&amp;&amp;</span> j <span class="op">==</span> <span class="dv">0</span>  <span class="ot">=</span> <span class="dv">1</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>      <span class="op">|</span> j <span class="op">==</span> <span class="dv">0</span>                      <span class="ot">=</span> <span class="dv">0</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>      <span class="op">|</span> j <span class="op">&gt;</span> <span class="dv">0</span>                       <span class="ot">=</span> <span class="fu">sum</span> [f <span class="op">!</span> (i <span class="op">-</span> k<span class="op">*</span><span class="dv">2</span><span class="op">^</span>j, j <span class="op">-</span> <span class="dv">1</span>) <span class="op">|</span> k <span class="ot">&lt;-</span> [<span class="dv">1</span> <span class="op">..</span> (<span class="fu">min</span> <span class="dv">9</span> (i <span class="ot">`div`</span> (<span class="dv">2</span><span class="op">^</span>j)))]]</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>                                      <span class="op">+</span> f <span class="op">!</span> (i, j <span class="op">-</span> <span class="dv">1</span>)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>      <span class="op">|</span> <span class="fu">otherwise</span>                   <span class="ot">=</span> <span class="fu">error</span> <span class="st">&quot;Impossible&quot;</span></span></code></pre></div>
+<p>How to get to the final answer from f(i, j) is out of the scope of this post. Let’s see how we can compute f(i, j) efficiently in Haskell.</p>
+<h2 id="memorization">Memorization</h2>
+<p>Most of the time, straight-forward (or naive) implementations were fast enough. Instead of manually dispatching the execution
+scheme, you can usually get away with using memorization instead.</p>
+<p>Memorization in Haskell is easy with lazy arrays. You create the cache array where each element will be computed by function f,
+and write the definition of f simply by changing every recursive call to indexing into the cache array in the equation:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Data.Array</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co">-- m = ...</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co">-- n = ...</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>cache <span class="ot">=</span> listArray ((<span class="dv">0</span>, <span class="dv">0</span>), (m, n)) [f i j <span class="op">|</span> i <span class="ot">&lt;-</span> [<span class="dv">0</span><span class="op">..</span>m], j <span class="ot">&lt;-</span> [<span class="dv">0</span><span class="op">..</span>n]]</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>f i j <span class="op">|</span> <span class="dv">0</span> <span class="op">&lt;=</span> i <span class="op">&amp;&amp;</span> i <span class="op">&lt;=</span> <span class="dv">9</span> <span class="op">&amp;&amp;</span> j <span class="op">==</span> <span class="dv">0</span>  <span class="ot">=</span> <span class="dv">1</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>      <span class="op">|</span> j <span class="op">==</span> <span class="dv">0</span>                      <span class="ot">=</span> <span class="dv">0</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>      <span class="op">|</span> j <span class="op">&gt;</span> <span class="dv">0</span>                       <span class="ot">=</span> <span class="fu">sum</span> [cache <span class="op">!</span> (i <span class="op">-</span> k<span class="op">*</span><span class="dv">2</span><span class="op">^</span>j, j <span class="op">-</span> <span class="dv">1</span>) <span class="op">|</span> k <span class="ot">&lt;-</span> [<span class="dv">1</span> <span class="op">..</span> (<span class="fu">min</span> <span class="dv">9</span> (i <span class="ot">`div`</span> (<span class="dv">2</span><span class="op">^</span>j)))]]</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>                                      <span class="op">+</span> cache <span class="op">!</span> (i, j <span class="op">-</span> <span class="dv">1</span>)</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>      <span class="op">|</span> <span class="fu">otherwise</span>                   <span class="ot">=</span> <span class="fu">error</span> <span class="st">&quot;Impossible&quot;</span></span></code></pre></div>
+<p>For the largest testcase this implementation TLEs. It takes 2.363s on my PC with -O2 optimization flag.</p>
+<h2 id="manual-dispatching-the-idiomatic-haskell-way">Manual dispatching (the idiomatic Haskell way?)</h2>
+<p>I have to admit that doing manual dispatching in a pure functional way is hard.
+For simplier DP problems like the one in <a href="https://stackoverflow.com/questions/10906053/how-does-one-write-efficient-dynamic-programming-algorithms-in-haskell?utm_source=pocket_mylist">this stackoverflow question</a> where you can compute the cache matrix
+row by row and need only the final solution, the accepted answer:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE BangPatterns #-}</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Data.Vector.Unboxed</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Prelude</span> <span class="kw">hiding</span> (replicate, tail, scanl)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="ot">pascal ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>pascal <span class="op">!</span>n <span class="ot">=</span> go <span class="dv">1</span> ((<span class="fu">replicate</span> (n<span class="op">+</span><span class="dv">1</span>) <span class="dv">1</span>)<span class="ot"> ::</span> <span class="dt">Vector</span> <span class="dt">Int</span>) <span class="kw">where</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>  go <span class="op">!</span>i <span class="op">!</span>prevRow</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    <span class="op">|</span> i <span class="op">&lt;=</span> n    <span class="ot">=</span> go (i<span class="op">+</span><span class="dv">1</span>) (<span class="fu">scanl</span> f <span class="dv">1</span> (<span class="fu">tail</span> prevRow))</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    <span class="op">|</span> <span class="fu">otherwise</span> <span class="ot">=</span> prevRow <span class="op">!</span> n</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>  f x y <span class="ot">=</span> (x <span class="op">+</span> y) <span class="ot">`rem`</span> <span class="dv">1000000</span></span></code></pre></div>
+<p>works well. However, in this case we need to construct the full table. Unfortunately there is no function in the vector library
+where you can initialize a vector while referring to previous values in the process. AFAIK the best you can do is to create each
+row and append them together, which requires a lot of memory copy and is not very efficient.</p>
+<p>For this HackerRank challenge I didn’t bother to try this method since I have to manually schedule the execution scheme anyway.
+There is really no advantage to implementing it in imperative style.</p>
+<h2 id="manual-dispatching-imperative-st-monad">Manual dispatching (imperative ST monad)</h2>
+<p>The following code contains some other optimizations. Namely</p>
+<ul>
+<li>computing sum of f over i in fSum at the same time.</li>
+<li>break out of array generation when maxQueries is reached (this is needed because we are no longer utilizing lazy evaluation)</li>
+</ul>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ot">f ::</span> <span class="dt">UArray</span> (<span class="dt">Int</span>, <span class="dt">Int</span>) <span class="dt">Int</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ot">fSum ::</span> <span class="dt">UArray</span> <span class="dt">Int</span> <span class="dt">Int</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>(f, fSum) <span class="ot">=</span> runST <span class="op">$</span> <span class="kw">do</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  f <span class="ot">&lt;-</span> newArray ((<span class="dv">0</span>, <span class="dv">0</span>), (m, n)) <span class="dv">0</span><span class="ot"> ::</span> <span class="dt">ST</span> s (<span class="dt">STUArray</span> s (<span class="dt">Int</span>, <span class="dt">Int</span>) <span class="dt">Int</span>)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  for_ [<span class="dv">0</span><span class="op">..</span><span class="dv">9</span>] <span class="op">$</span> \i <span class="ot">-&gt;</span> writeArray f (i, <span class="dv">0</span>) <span class="dv">1</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  for_ [<span class="dv">0</span><span class="op">..</span>n] <span class="op">$</span> \j <span class="ot">-&gt;</span> writeArray f (<span class="dv">0</span>, j) <span class="dv">1</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>  fSum <span class="ot">&lt;-</span> newArray (<span class="dv">0</span>, m)<span class="ot"> maxQueries ::</span> <span class="dt">ST</span> s (<span class="dt">STUArray</span> s <span class="dt">Int</span> <span class="dt">Int</span>)</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  writeArray fSum <span class="dv">0</span> <span class="dv">1</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>  _ <span class="ot">&lt;-</span> runMaybeT <span class="op">$</span> for_ [<span class="dv">1</span><span class="op">..</span>] <span class="op">$</span> \i <span class="ot">-&gt;</span> <span class="kw">do</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    prevSum <span class="ot">&lt;-</span> lift <span class="op">$</span> readArray fSum (i <span class="op">-</span> <span class="dv">1</span>)</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">if</span> prevSum <span class="op">&gt;=</span> maxQueries</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>      <span class="kw">then</span> <span class="dt">MaybeT</span> <span class="op">$</span> <span class="fu">return</span> <span class="dt">Nothing</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>      <span class="kw">else</span> lift <span class="op">$</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>        for_ [<span class="dv">0</span><span class="op">..</span>n] <span class="op">$</span> \j <span class="ot">-&gt;</span> <span class="kw">do</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>          <span class="kw">case</span> (i, j) <span class="kw">of</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>            (i, j) <span class="op">|</span> i <span class="op">&gt;</span> <span class="dv">9</span> <span class="op">&amp;&amp;</span> j <span class="op">==</span> <span class="dv">0</span> <span class="ot">-&gt;</span> writeArray f (i, j) <span class="dv">0</span></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>                   <span class="op">|</span> j <span class="op">==</span> <span class="dv">0</span> <span class="ot">-&gt;</span> writeArray f (i, j) <span class="dv">1</span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>                   <span class="op">|</span> <span class="fu">otherwise</span> <span class="ot">-&gt;</span> <span class="kw">do</span> part1 <span class="ot">&lt;-</span> readArray f (i, j<span class="op">-</span><span class="dv">1</span>)</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>                                     part2 <span class="ot">&lt;-</span> <span class="fu">sum</span> <span class="op">&lt;$&gt;</span> <span class="fu">sequence</span> [readArray f (i <span class="op">-</span> k<span class="op">*</span><span class="dv">2</span><span class="op">^</span>j, j <span class="op">-</span> <span class="dv">1</span>) <span class="op">|</span> k <span class="ot">&lt;-</span> [<span class="dv">1</span> <span class="op">..</span> (<span class="fu">min</span> <span class="dv">9</span> (i <span class="ot">`div`</span> (<span class="dv">2</span><span class="op">^</span>j)))]]</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>                                     writeArray f (i, j) (part1 <span class="op">+</span> part2)</span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>    cur <span class="ot">&lt;-</span> lift <span class="op">$</span> readArray f (i, maxBinaryIndex i)</span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>    lift <span class="op">$</span> writeArray fSum i (prevSum <span class="op">+</span> cur)</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>  ff <span class="ot">&lt;-</span> unsafeFreeze f</span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>  ffSum <span class="ot">&lt;-</span> unsafeFreeze fSum</span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span> (ff, ffSum)</span></code></pre></div>
+<p>This implementation takes only 0.768s.</p>
+<h3 id="lack-of-break-in-forloop">Lack of “break” in forloop</h3>
+<p>Loop constructs such as <code class="verbatim">for_</code> are really just flipped <code class="verbatim">traverse</code>. To break out of the loop
+we can apply MaybeT moand transformer over the ST monad.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>_ <span class="ot">&lt;-</span> runMaybeT <span class="op">$</span> for_ [<span class="dv">1</span><span class="op">..</span>] <span class="op">$</span> \i <span class="ot">-&gt;</span> <span class="kw">do</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">if</span> earlyBreakCondition</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">then</span> <span class="dt">MaybeT</span> <span class="op">$</span> <span class="fu">return</span> <span class="dt">Nothing</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">else</span> lift <span class="op">$</span> <span class="kw">do</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>      <span class="co">-- ...</span></span></code></pre></div>
+<h3 id="some-other-performance-related-notes">Some other performance-related notes</h3>
+<ul>
+<li>using unboxed array (STUArray and UArray) saves around 0.4s compared to boxed version (STArray and Array)</li>
+<li>unsafeFreeze: the performance impact of copying the array once is insignificant compared to the complexity of the dynamic programming algorithm itself</li>
+<li>for large input data you should always use ByteString instead of String IO. It saves me around 0.3s in this case</li>
+</ul>
+  </section>
+</article>
+
+    </main>
+
+    <footer>
+      <div class="footer-links">
+        <a href="https://matrix.to/#/@autrim64:matrix.a64.work">matrix</a>
+        <a href="https://github.com/wakira">github</a>
+        <a href="https://www.linkedin.com/in/sheng-wang-3b413a91/">linkedin</a>
+        <a href="mailto:sheng@a64.work">mail</a>
+        <a target="_blank" href="../pgp/ShengWang.asc">pgp</a>
+      </div>
+      <div>
+        Built using
+        <a href="http://jaspervdj.be/hakyll">Hakyll</a>
+      </div>
+    </footer>
+  </body>
+</html>

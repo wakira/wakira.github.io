@@ -31,22 +31,35 @@
   </section>
   <section>
     <h2 id="your-vpn-connection-may-not-be-as-safe-as-you-think">Your VPN connection may not be as safe as you think</h2>
-<p>Many VPN clients in Linux modify the nameserver record in <code>/etc/resolv.conf</code> to its own DNS server when initiating connection. This will not work on distros using systemd-resolved as DNS resolver. Your DNS queries will go to your normal DNS server which will know every site you visit.</p>
-<p>You can read <a href="https://blogs.gnome.org/mcatanzaro/2020/12/17/understanding-systemd-resolved-split-dns-and-vpn-configuration/">this blogpost</a> for a more in-depth understanding of how systemd-resolved manages DNS queries. In short, <code>/etc/resolv.conf</code> is managed by systemd-resolved and should not be edited manually. Instead, you can configure the DNS server for a particular NIC by <code>resolvectl dns [NIC_NAME] [DNS_IP]</code> command.</p>
-<p>Unfortunately for ProtonVpn that I am currently using, there are currently no clients designed with systemd-resolved in mind. Neither the official client nor the community-maintained cli-client handles DNS correctly (there is a <a href="https://github.com/Rafficer/linux-cli-community/pull/323">PR</a> for the community client though).</p>
+<p>Many VPN clients in Linux modify the nameserver record in <code>/etc/resolv.conf</code> to its own DNS server when initiating connection.
+This will not work on distros using systemd-resolved as DNS resolver. Your DNS queries will go to your normal DNS server which
+will know every site you visit.</p>
+<p>You can read <a href="https://blogs.gnome.org/mcatanzaro/2020/12/17/understanding-systemd-resolved-split-dns-and-vpn-configuration/">this blogpost</a> for a more
+in-depth understanding of how systemd-resolved manages DNS queries. In short, <code>/etc/resolv.conf</code>
+is managed by systemd-resolved and should not be edited manually. Instead, you can configure the DNS server for a particular NIC
+by <code>resolvectl dns [NIC_NAME] [DNS_IP]</code> command.</p>
+<p>Unfortunately for ProtonVpn that I am currently using, there are currently no clients designed with systemd-resolved in mind.
+Neither the official client nor the community-maintained cli-client handles DNS correctly (there is a <a href="https://github.com/Rafficer/linux-cli-community/pull/323">PR</a> for the community client though).</p>
 <h2 id="split-dns-is-useful-but-may-have-security-implications">Split DNS is useful but may have security implications</h2>
 <p>As far as DNS is concerned, you can either force a global DNS server or use a different one per link.</p>
-<p>The former is easier to manage but cause problems when using VPNs or connecting to public WIFI hotspots. The latter requires more configuration and may surprise you when you find that you are actually using another DNS server then the one you want.</p>
+<p>The former is easier to manage but cause problems when using VPNs or connecting to public WIFI hotspots.
+The latter requires more configuration and may surprise you when you find that you are actually using another
+DNS server then the one you want.</p>
 <h3 id="global-dns">Global DNS</h3>
-<p>To force a global DNS regardless of network connections. You can your systemd-resolved configuration file and specify global DNS servers and let it take precedence over NIC-specific settings (by setting <strong>Domains=~.</strong>). Without <strong>Domains=~.</strong> the global setting will be considered a fallback instead.</p>
+<p>To force a global DNS regardless of network connections. You can your systemd-resolved configuration file
+and specify global DNS servers and let it take precedence over NIC-specific settings (by setting <strong>Domains=~.</strong>). Without <strong>Domains=~.</strong>
+the global setting will be considered a fallback instead.</p>
 <pre><code>[Resolve]
 DNS=XX.XX.XX.XX YY.YY.YY.YY
 Domains=~.
 </code></pre>
-<p>Beware that there is no way to change the global setting on the fly using the <code>resolvectl</code> command. You will have to edit the config file and restart systemd-resolved for changes to take effect.</p>
+<p>Beware that there is no way to change the global setting on the fly using the <code>resolvectl</code> command. You will have to edit the config file
+and restart systemd-resolved for changes to take effect.</p>
 <h3 id="split-dns">Split DNS</h3>
-<p>Split DNS is “the correct way” to use systemd-resolved. You can specify a global (fallback) DNS (without <strong>Domains=~.</strong>) and disable link-specific DNS settings in NetworkManager settings for connections that you want your global setting to take effect.</p>
-<p>Caveat: in NetworkManager, DNS by DHCP is enabled by default. I would advise you to check your DNS resolver configuration using <code>resolvectl status</code> everytime you connect to a new network as the DHCP server might give you a DNS server that you do not trust.</p>
+<p>Split DNS is “the correct way” to use systemd-resolved. You can specify a global (fallback) DNS (without <strong>Domains=~.</strong>) and disable
+link-specific DNS settings in NetworkManager settings for connections that you want your global setting to take effect.</p>
+<p>Caveat: in NetworkManager, DNS by DHCP is enabled by default. I would advise you to check your DNS resolver configuration using
+<code>resolvectl status</code> everytime you connect to a new network as the DHCP server might give you a DNS server that you do not trust.</p>
   </section>
 </article>
 

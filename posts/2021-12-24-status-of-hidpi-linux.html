@@ -32,14 +32,25 @@
   <section>
     <p>TLDR: there is no perfect solution for the time being.</p>
 <h2 id="hidpi-in-wayland-is-far-from-perfect">HiDPI in wayland is far from perfect</h2>
-<p>A common misconception is that wayland-native applications works perfectly with fractional scaling. This is not true if you need a fractional scale such as 1.5x. The fact is wayland protocol can only communicate a integer scale value with its clients. To achieve fractional scaling like 1.5x, compositors usually tell client windows to draw at 2x and then downscale the raster image by 0.75. The artifacts are indeed very noticeable especially on texts where font rendering techniques like sub-pixel hinting are completely messed up by the downscaling.</p>
-<p>Personally I cannot accept the raster-downscaled image on my 4k 27’’ monitor (163ppi). It’s like an additional gaussian blur filter is applied. On a 200+ ppi screen the situation is better but you can still make out the difference if you compare side by side.</p>
-<p>XWayland applications are in a much worse situation where they are rendered at 1x and upscaled. No matter how high the ppi of your screen is the blurriness does not go away.</p>
+<p>A common misconception is that wayland-native applications works perfectly with fractional scaling.
+This is not true if you need a fractional scale such as 1.5x. The fact is wayland protocol can only communicate
+a integer scale value with its clients. To achieve fractional scaling like 1.5x, compositors usually tell
+client windows to draw at 2x and then downscale the raster image by 0.75. The artifacts are indeed very noticeable
+especially on texts where font rendering techniques like sub-pixel hinting are completely messed up by the downscaling.</p>
+<p>Personally I cannot accept the raster-downscaled image on my 4k 27’’ monitor (163ppi). It’s like an additional gaussian blur
+filter is applied. On a 200+ ppi screen the situation is better but you can still make out the difference if you compare side by side.</p>
+<p>XWayland applications are in a much worse situation where they are rendered at 1x and upscaled. No matter how high the ppi
+of your screen is the blurriness does not go away.</p>
 <h2 id="some-graphical-toolkits-can-render-directly-at-a-fractional-scale">Some graphical toolkits can render directly at a fractional scale</h2>
-<p>QT and electron has the ability to render directly at a fractional scale. For example, if you are using KDE in X11 you can set a fractional scale and all QT applications will look perfect. Gtk cannot render its UI elements at a fractional scale but scaling the font alone is enough in most cases (although it makes the UI ugly).</p>
-<p>Unfortunately you cannot set this fractional value per screen either in X or wayland. In other words, if you have multiple monitors of vastly different ppi, you will have to choose between the ideal scale factor (by using raster downscaling) and crisp images (by setting the render scale of toolkits).</p>
+<p>QT and electron has the ability to render directly at a fractional scale. For example, if you are using KDE in X11 you can set a fractional scale
+and all QT applications will look perfect. Gtk cannot render its UI elements at a fractional scale but scaling the font alone is enough in most
+cases (although it makes the UI ugly).</p>
+<p>Unfortunately you cannot set this fractional value per screen either in X or wayland. In other words, if you have multiple monitors of vastly different ppi,
+you will have to choose between the ideal scale factor (by using raster downscaling) and crisp images (by setting the render scale of toolkits).</p>
 <h2 id="some-additional-annoyances">Some additional annoyances</h2>
-<p>Integer scaling is perfect in Gnome even for XWayland applications (if you don’t move them across screens). However in KDE Wayland and Swaywm you will see XWayland applications being upscaled from 1x. Since almost all games are run through XWayland this makes gaming impossible even if your HiDPI monitor requires only integer scaling.</p>
+<p>Integer scaling is perfect in Gnome even for XWayland applications (if you don’t move them across screens). However in KDE Wayland and Swaywm you will see
+XWayland applications being upscaled from 1x. Since almost all games are run through XWayland this makes gaming impossible even if your HiDPI monitor
+requires only integer scaling.</p>
   </section>
 </article>
 

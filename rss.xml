@@ -7,8 +7,174 @@
         <description><![CDATA[Pursuing pureness without being autistic]]></description>
         <atom:link href="https://site.a64.work/rss.xml" rel="self"
                    type="application/rss+xml" />
-        <lastBuildDate>Fri, 24 Dec 2021 00:00:00 UT</lastBuildDate>
+        <lastBuildDate>Sat, 02 Apr 2022 00:00:00 UT</lastBuildDate>
         <item>
+    <title>Notes regarding dynamic programming and performance in Haskell</title>
+    <link>https://site.a64.work/posts/2022-04-02-dynamic-programming-performance-haskell.html</link>
+    <description><![CDATA[<h1>Notes regarding dynamic programming and performance in Haskell</h1>
+<article>
+  <section class="header">
+    Posted on April  2, 2022
+    
+  </section>
+  <section>
+    <p>As some of you may know, some competitive programming sites allow you to use “exotic” languages.
+Recently I spent some of my spare time solving the HackerRank’s Interview Preparation Kit challenges <a href="https://github.com/wakira/hackerrank-haskell">in Haskell</a>.</p>
+<p>In this post I will talk about writing dynamic programming algorithms in Haskell. Using <a href="https://www.hackerrank.com/challenges/decibinary-numbers">this problem</a> as an example.</p>
+<h2 id="the-solution">The solution</h2>
+<p>Let’s go straight to the solution.</p>
+<p>Let f(i, j) be the number of decibinaries that has value of i using the maximum base of 2<sup>j</sup> (in other words,
+using the maximum of j+1 digits). We can compute f(i, j) by</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>f i j <span class="op">|</span> <span class="dv">0</span> <span class="op">&lt;=</span> i <span class="op">&amp;&amp;</span> i <span class="op">&lt;=</span> <span class="dv">9</span> <span class="op">&amp;&amp;</span> j <span class="op">==</span> <span class="dv">0</span>  <span class="ot">=</span> <span class="dv">1</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>      <span class="op">|</span> j <span class="op">==</span> <span class="dv">0</span>                      <span class="ot">=</span> <span class="dv">0</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>      <span class="op">|</span> j <span class="op">&gt;</span> <span class="dv">0</span>                       <span class="ot">=</span> <span class="fu">sum</span> [f <span class="op">!</span> (i <span class="op">-</span> k<span class="op">*</span><span class="dv">2</span><span class="op">^</span>j, j <span class="op">-</span> <span class="dv">1</span>) <span class="op">|</span> k <span class="ot">&lt;-</span> [<span class="dv">1</span> <span class="op">..</span> (<span class="fu">min</span> <span class="dv">9</span> (i <span class="ot">`div`</span> (<span class="dv">2</span><span class="op">^</span>j)))]]</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>                                      <span class="op">+</span> f <span class="op">!</span> (i, j <span class="op">-</span> <span class="dv">1</span>)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>      <span class="op">|</span> <span class="fu">otherwise</span>                   <span class="ot">=</span> <span class="fu">error</span> <span class="st">&quot;Impossible&quot;</span></span></code></pre></div>
+<p>How to get to the final answer from f(i, j) is out of the scope of this post. Let’s see how we can compute f(i, j) efficiently in Haskell.</p>
+<h2 id="memorization">Memorization</h2>
+<p>Most of the time, straight-forward (or naive) implementations were fast enough. Instead of manually dispatching the execution
+scheme, you can usually get away with using memorization instead.</p>
+<p>Memorization in Haskell is easy with lazy arrays. You create the cache array where each element will be computed by function f,
+and write the definition of f simply by changing every recursive call to indexing into the cache array in the equation:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Data.Array</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co">-- m = ...</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co">-- n = ...</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>cache <span class="ot">=</span> listArray ((<span class="dv">0</span>, <span class="dv">0</span>), (m, n)) [f i j <span class="op">|</span> i <span class="ot">&lt;-</span> [<span class="dv">0</span><span class="op">..</span>m], j <span class="ot">&lt;-</span> [<span class="dv">0</span><span class="op">..</span>n]]</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>f i j <span class="op">|</span> <span class="dv">0</span> <span class="op">&lt;=</span> i <span class="op">&amp;&amp;</span> i <span class="op">&lt;=</span> <span class="dv">9</span> <span class="op">&amp;&amp;</span> j <span class="op">==</span> <span class="dv">0</span>  <span class="ot">=</span> <span class="dv">1</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>      <span class="op">|</span> j <span class="op">==</span> <span class="dv">0</span>                      <span class="ot">=</span> <span class="dv">0</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>      <span class="op">|</span> j <span class="op">&gt;</span> <span class="dv">0</span>                       <span class="ot">=</span> <span class="fu">sum</span> [cache <span class="op">!</span> (i <span class="op">-</span> k<span class="op">*</span><span class="dv">2</span><span class="op">^</span>j, j <span class="op">-</span> <span class="dv">1</span>) <span class="op">|</span> k <span class="ot">&lt;-</span> [<span class="dv">1</span> <span class="op">..</span> (<span class="fu">min</span> <span class="dv">9</span> (i <span class="ot">`div`</span> (<span class="dv">2</span><span class="op">^</span>j)))]]</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>                                      <span class="op">+</span> cache <span class="op">!</span> (i, j <span class="op">-</span> <span class="dv">1</span>)</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>      <span class="op">|</span> <span class="fu">otherwise</span>                   <span class="ot">=</span> <span class="fu">error</span> <span class="st">&quot;Impossible&quot;</span></span></code></pre></div>
+<p>For the largest testcase this implementation TLEs. It takes 2.363s on my PC with -O2 optimization flag.</p>
+<h2 id="manual-dispatching-the-idiomatic-haskell-way">Manual dispatching (the idiomatic Haskell way?)</h2>
+<p>I have to admit that doing manual dispatching in a pure functional way is hard.
+For simplier DP problems like the one in <a href="https://stackoverflow.com/questions/10906053/how-does-one-write-efficient-dynamic-programming-algorithms-in-haskell?utm_source=pocket_mylist">this stackoverflow question</a> where you can compute the cache matrix
+row by row and need only the final solution, the accepted answer:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE BangPatterns #-}</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Data.Vector.Unboxed</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Prelude</span> <span class="kw">hiding</span> (replicate, tail, scanl)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="ot">pascal ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>pascal <span class="op">!</span>n <span class="ot">=</span> go <span class="dv">1</span> ((<span class="fu">replicate</span> (n<span class="op">+</span><span class="dv">1</span>) <span class="dv">1</span>)<span class="ot"> ::</span> <span class="dt">Vector</span> <span class="dt">Int</span>) <span class="kw">where</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>  go <span class="op">!</span>i <span class="op">!</span>prevRow</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    <span class="op">|</span> i <span class="op">&lt;=</span> n    <span class="ot">=</span> go (i<span class="op">+</span><span class="dv">1</span>) (<span class="fu">scanl</span> f <span class="dv">1</span> (<span class="fu">tail</span> prevRow))</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    <span class="op">|</span> <span class="fu">otherwise</span> <span class="ot">=</span> prevRow <span class="op">!</span> n</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>  f x y <span class="ot">=</span> (x <span class="op">+</span> y) <span class="ot">`rem`</span> <span class="dv">1000000</span></span></code></pre></div>
+<p>works well. However, in this case we need to construct the full table. Unfortunately there is no function in the vector library
+where you can initialize a vector while referring to previous values in the process. AFAIK the best you can do is to create each
+row and append them together, which requires a lot of memory copy and is not very efficient.</p>
+<p>For this HackerRank challenge I didn’t bother to try this method since I have to manually schedule the execution scheme anyway.
+There is really no advantage to implementing it in imperative style.</p>
+<h2 id="manual-dispatching-imperative-st-monad">Manual dispatching (imperative ST monad)</h2>
+<p>The following code contains some other optimizations. Namely</p>
+<ul>
+<li>computing sum of f over i in fSum at the same time.</li>
+<li>break out of array generation when maxQueries is reached (this is needed because we are no longer utilizing lazy evaluation)</li>
+</ul>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ot">f ::</span> <span class="dt">UArray</span> (<span class="dt">Int</span>, <span class="dt">Int</span>) <span class="dt">Int</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ot">fSum ::</span> <span class="dt">UArray</span> <span class="dt">Int</span> <span class="dt">Int</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>(f, fSum) <span class="ot">=</span> runST <span class="op">$</span> <span class="kw">do</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  f <span class="ot">&lt;-</span> newArray ((<span class="dv">0</span>, <span class="dv">0</span>), (m, n)) <span class="dv">0</span><span class="ot"> ::</span> <span class="dt">ST</span> s (<span class="dt">STUArray</span> s (<span class="dt">Int</span>, <span class="dt">Int</span>) <span class="dt">Int</span>)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  for_ [<span class="dv">0</span><span class="op">..</span><span class="dv">9</span>] <span class="op">$</span> \i <span class="ot">-&gt;</span> writeArray f (i, <span class="dv">0</span>) <span class="dv">1</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  for_ [<span class="dv">0</span><span class="op">..</span>n] <span class="op">$</span> \j <span class="ot">-&gt;</span> writeArray f (<span class="dv">0</span>, j) <span class="dv">1</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>  fSum <span class="ot">&lt;-</span> newArray (<span class="dv">0</span>, m)<span class="ot"> maxQueries ::</span> <span class="dt">ST</span> s (<span class="dt">STUArray</span> s <span class="dt">Int</span> <span class="dt">Int</span>)</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  writeArray fSum <span class="dv">0</span> <span class="dv">1</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>  _ <span class="ot">&lt;-</span> runMaybeT <span class="op">$</span> for_ [<span class="dv">1</span><span class="op">..</span>] <span class="op">$</span> \i <span class="ot">-&gt;</span> <span class="kw">do</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    prevSum <span class="ot">&lt;-</span> lift <span class="op">$</span> readArray fSum (i <span class="op">-</span> <span class="dv">1</span>)</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">if</span> prevSum <span class="op">&gt;=</span> maxQueries</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>      <span class="kw">then</span> <span class="dt">MaybeT</span> <span class="op">$</span> <span class="fu">return</span> <span class="dt">Nothing</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>      <span class="kw">else</span> lift <span class="op">$</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>        for_ [<span class="dv">0</span><span class="op">..</span>n] <span class="op">$</span> \j <span class="ot">-&gt;</span> <span class="kw">do</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>          <span class="kw">case</span> (i, j) <span class="kw">of</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>            (i, j) <span class="op">|</span> i <span class="op">&gt;</span> <span class="dv">9</span> <span class="op">&amp;&amp;</span> j <span class="op">==</span> <span class="dv">0</span> <span class="ot">-&gt;</span> writeArray f (i, j) <span class="dv">0</span></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>                   <span class="op">|</span> j <span class="op">==</span> <span class="dv">0</span> <span class="ot">-&gt;</span> writeArray f (i, j) <span class="dv">1</span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>                   <span class="op">|</span> <span class="fu">otherwise</span> <span class="ot">-&gt;</span> <span class="kw">do</span> part1 <span class="ot">&lt;-</span> readArray f (i, j<span class="op">-</span><span class="dv">1</span>)</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>                                     part2 <span class="ot">&lt;-</span> <span class="fu">sum</span> <span class="op">&lt;$&gt;</span> <span class="fu">sequence</span> [readArray f (i <span class="op">-</span> k<span class="op">*</span><span class="dv">2</span><span class="op">^</span>j, j <span class="op">-</span> <span class="dv">1</span>) <span class="op">|</span> k <span class="ot">&lt;-</span> [<span class="dv">1</span> <span class="op">..</span> (<span class="fu">min</span> <span class="dv">9</span> (i <span class="ot">`div`</span> (<span class="dv">2</span><span class="op">^</span>j)))]]</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>                                     writeArray f (i, j) (part1 <span class="op">+</span> part2)</span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>    cur <span class="ot">&lt;-</span> lift <span class="op">$</span> readArray f (i, maxBinaryIndex i)</span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>    lift <span class="op">$</span> writeArray fSum i (prevSum <span class="op">+</span> cur)</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>  ff <span class="ot">&lt;-</span> unsafeFreeze f</span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>  ffSum <span class="ot">&lt;-</span> unsafeFreeze fSum</span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span> (ff, ffSum)</span></code></pre></div>
+<p>This implementation takes only 0.768s.</p>
+<h3 id="lack-of-break-in-forloop">Lack of “break” in forloop</h3>
+<p>Loop constructs such as <code class="verbatim">for_</code> are really just flipped <code class="verbatim">traverse</code>. To break out of the loop
+we can apply MaybeT moand transformer over the ST monad.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>_ <span class="ot">&lt;-</span> runMaybeT <span class="op">$</span> for_ [<span class="dv">1</span><span class="op">..</span>] <span class="op">$</span> \i <span class="ot">-&gt;</span> <span class="kw">do</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">if</span> earlyBreakCondition</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">then</span> <span class="dt">MaybeT</span> <span class="op">$</span> <span class="fu">return</span> <span class="dt">Nothing</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">else</span> lift <span class="op">$</span> <span class="kw">do</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>      <span class="co">-- ...</span></span></code></pre></div>
+<h3 id="some-other-performance-related-notes">Some other performance-related notes</h3>
+<ul>
+<li>using unboxed array (STUArray and UArray) saves around 0.4s compared to boxed version (STArray and Array)</li>
+<li>unsafeFreeze: the performance impact of copying the array once is insignificant compared to the complexity of the dynamic programming algorithm itself</li>
+<li>for large input data you should always use ByteString instead of String IO. It saves me around 0.3s in this case</li>
+</ul>
+  </section>
+</article>
+]]></description>
+    <pubDate>Sat, 02 Apr 2022 00:00:00 UT</pubDate>
+    <guid>https://site.a64.work/posts/2022-04-02-dynamic-programming-performance-haskell.html</guid>
+    <dc:creator>autrim64</dc:creator>
+</item>
+<item>
+    <title>Recording my progress porting gi-gtk-declarative to gtk4</title>
+    <link>https://site.a64.work/posts/2022-02-01-gi-gtk-declarative-gtk4-port.html</link>
+    <description><![CDATA[<h1>Recording my progress porting gi-gtk-declarative to gtk4</h1>
+<article>
+  <section class="header">
+    Posted on February  1, 2022
+    
+  </section>
+  <section>
+    <p>This blog post is used to track my progress in porting <a href="https://hackage.haskell.org/package/gi-gtk-declarative">gi-gtk-declarative</a> to Gtk4.</p>
+<h2 id="understand-the-shadow-state-tree"><span class="done DONE">DONE</span> understand the shadow state tree</h2>
+<h2 id="deal-with-the-removal-of-isbin-and-iscontainer-class"><span class="todo TODO">TODO</span> deal with the removal of IsBin and IsContainer class</h2>
+<h2 id="removal-of-destroywidget">removal of destroyWidget</h2>
+<h2 id="removal-of-childstates">removal of ChildStates</h2>
+<h2 id="paned">Paned</h2>
+<p>Gtk3: <a href="https://docs.gtk.org/gtk3/class.Paned.html">https://docs.gtk.org/gtk3/class.Paned.html</a>
+Gtk4: <a href="https://docs.gtk.org/gtk4/class.Paned.html">https://docs.gtk.org/gtk4/class.Paned.html</a></p>
+<h2 id="call-label-function-in-instances">call label function in instances</h2>
+<p>in Data.GI.Base</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ot">get ::</span> <span class="kw">forall</span> info attr obj result m<span class="op">.</span> (<span class="dt">AttrGetC</span> info obj attr result, <span class="dt">MonadIO</span> m) <span class="ot">=&gt;</span> obj <span class="ot">-&gt;</span> <span class="dt">AttrLabelProxy</span> (<span class="ot">attr ::</span> <span class="dt">Symbol</span>) <span class="ot">-&gt;</span> m result </span></code></pre></div>
+<p>also a possible example from Attributes.hs</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- | The attribute GADT represent a supported attribute for a declarative</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="co">-- widget. This extends the regular notion of GTK+ attributes to also include</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co">-- event handling and CSS classes.</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Attribute</span> widget event <span class="kw">where</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="co">-- | An attribute/value mapping for a declarative widget. The</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  <span class="co">-- 'GI.AttrLabelProxy' is parameterized by 'attr', which represents the</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  <span class="co">-- GTK-defined attribute name. The underlying GI object needs to support</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  <span class="co">-- the /construct/, /get/, and /set/ operations for the given attribute.</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  (<span class="op">:=</span>)</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="ot">    ::</span>(<span class="dt">GI.AttrOpAllowed</span> <span class="dt">'GI.AttrConstruct</span> info widget</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>      , <span class="dt">GI.AttrOpAllowed</span> <span class="dt">'GI.AttrSet</span> info widget</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>      , <span class="dt">GI.AttrGetC</span> info widget attr getValue</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>      , <span class="dt">GI.AttrSetTypeConstraint</span> info setValue</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>      , <span class="dt">KnownSymbol</span> attr</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>      , <span class="dt">Typeable</span> attr</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>      , <span class="dt">Eq</span> setValue</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>      , <span class="dt">Typeable</span> setValue</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>   <span class="ot">=&gt;</span> <span class="dt">GI.AttrLabelProxy</span> (<span class="ot">attr ::</span> <span class="dt">Symbol</span>) <span class="ot">-&gt;</span> setValue <span class="ot">-&gt;</span> <span class="dt">Attribute</span> widget event</span></code></pre></div>
+<p>AttrSetC -&gt; AttrSetTypeConstraint -&gt; IsWidget</p>
+<p>so we need IsWidget in the context of Bin child</p>
+<p>seems that GHC cannot infer it?
+is it because of Widget and fromWidget?</p>
+  </section>
+</article>
+]]></description>
+    <pubDate>Tue, 01 Feb 2022 00:00:00 UT</pubDate>
+    <guid>https://site.a64.work/posts/2022-02-01-gi-gtk-declarative-gtk4-port.html</guid>
+    <dc:creator>autrim64</dc:creator>
+</item>
+<item>
     <title>The status of non-integer HiDPI scaling support in Linux</title>
     <link>https://site.a64.work/posts/2021-12-24-status-of-hidpi-linux.html</link>
     <description><![CDATA[<h1>The status of non-integer HiDPI scaling support in Linux</h1>
@@ -20,14 +186,25 @@
   <section>
     <p>TLDR: there is no perfect solution for the time being.</p>
 <h2 id="hidpi-in-wayland-is-far-from-perfect">HiDPI in wayland is far from perfect</h2>
-<p>A common misconception is that wayland-native applications works perfectly with fractional scaling. This is not true if you need a fractional scale such as 1.5x. The fact is wayland protocol can only communicate a integer scale value with its clients. To achieve fractional scaling like 1.5x, compositors usually tell client windows to draw at 2x and then downscale the raster image by 0.75. The artifacts are indeed very noticeable especially on texts where font rendering techniques like sub-pixel hinting are completely messed up by the downscaling.</p>
-<p>Personally I cannot accept the raster-downscaled image on my 4k 27’’ monitor (163ppi). It’s like an additional gaussian blur filter is applied. On a 200+ ppi screen the situation is better but you can still make out the difference if you compare side by side.</p>
-<p>XWayland applications are in a much worse situation where they are rendered at 1x and upscaled. No matter how high the ppi of your screen is the blurriness does not go away.</p>
+<p>A common misconception is that wayland-native applications works perfectly with fractional scaling.
+This is not true if you need a fractional scale such as 1.5x. The fact is wayland protocol can only communicate
+a integer scale value with its clients. To achieve fractional scaling like 1.5x, compositors usually tell
+client windows to draw at 2x and then downscale the raster image by 0.75. The artifacts are indeed very noticeable
+especially on texts where font rendering techniques like sub-pixel hinting are completely messed up by the downscaling.</p>
+<p>Personally I cannot accept the raster-downscaled image on my 4k 27’’ monitor (163ppi). It’s like an additional gaussian blur
+filter is applied. On a 200+ ppi screen the situation is better but you can still make out the difference if you compare side by side.</p>
+<p>XWayland applications are in a much worse situation where they are rendered at 1x and upscaled. No matter how high the ppi
+of your screen is the blurriness does not go away.</p>
 <h2 id="some-graphical-toolkits-can-render-directly-at-a-fractional-scale">Some graphical toolkits can render directly at a fractional scale</h2>
-<p>QT and electron has the ability to render directly at a fractional scale. For example, if you are using KDE in X11 you can set a fractional scale and all QT applications will look perfect. Gtk cannot render its UI elements at a fractional scale but scaling the font alone is enough in most cases (although it makes the UI ugly).</p>
-<p>Unfortunately you cannot set this fractional value per screen either in X or wayland. In other words, if you have multiple monitors of vastly different ppi, you will have to choose between the ideal scale factor (by using raster downscaling) and crisp images (by setting the render scale of toolkits).</p>
+<p>QT and electron has the ability to render directly at a fractional scale. For example, if you are using KDE in X11 you can set a fractional scale
+and all QT applications will look perfect. Gtk cannot render its UI elements at a fractional scale but scaling the font alone is enough in most
+cases (although it makes the UI ugly).</p>
+<p>Unfortunately you cannot set this fractional value per screen either in X or wayland. In other words, if you have multiple monitors of vastly different ppi,
+you will have to choose between the ideal scale factor (by using raster downscaling) and crisp images (by setting the render scale of toolkits).</p>
 <h2 id="some-additional-annoyances">Some additional annoyances</h2>
-<p>Integer scaling is perfect in Gnome even for XWayland applications (if you don’t move them across screens). However in KDE Wayland and Swaywm you will see XWayland applications being upscaled from 1x. Since almost all games are run through XWayland this makes gaming impossible even if your HiDPI monitor requires only integer scaling.</p>
+<p>Integer scaling is perfect in Gnome even for XWayland applications (if you don’t move them across screens). However in KDE Wayland and Swaywm you will see
+XWayland applications being upscaled from 1x. Since almost all games are run through XWayland this makes gaming impossible even if your HiDPI monitor
+requires only integer scaling.</p>
   </section>
 </article>
 ]]></description>
@@ -46,22 +223,35 @@
   </section>
   <section>
     <h2 id="your-vpn-connection-may-not-be-as-safe-as-you-think">Your VPN connection may not be as safe as you think</h2>
-<p>Many VPN clients in Linux modify the nameserver record in <code>/etc/resolv.conf</code> to its own DNS server when initiating connection. This will not work on distros using systemd-resolved as DNS resolver. Your DNS queries will go to your normal DNS server which will know every site you visit.</p>
-<p>You can read <a href="https://blogs.gnome.org/mcatanzaro/2020/12/17/understanding-systemd-resolved-split-dns-and-vpn-configuration/">this blogpost</a> for a more in-depth understanding of how systemd-resolved manages DNS queries. In short, <code>/etc/resolv.conf</code> is managed by systemd-resolved and should not be edited manually. Instead, you can configure the DNS server for a particular NIC by <code>resolvectl dns [NIC_NAME] [DNS_IP]</code> command.</p>
-<p>Unfortunately for ProtonVpn that I am currently using, there are currently no clients designed with systemd-resolved in mind. Neither the official client nor the community-maintained cli-client handles DNS correctly (there is a <a href="https://github.com/Rafficer/linux-cli-community/pull/323">PR</a> for the community client though).</p>
+<p>Many VPN clients in Linux modify the nameserver record in <code>/etc/resolv.conf</code> to its own DNS server when initiating connection.
+This will not work on distros using systemd-resolved as DNS resolver. Your DNS queries will go to your normal DNS server which
+will know every site you visit.</p>
+<p>You can read <a href="https://blogs.gnome.org/mcatanzaro/2020/12/17/understanding-systemd-resolved-split-dns-and-vpn-configuration/">this blogpost</a> for a more
+in-depth understanding of how systemd-resolved manages DNS queries. In short, <code>/etc/resolv.conf</code>
+is managed by systemd-resolved and should not be edited manually. Instead, you can configure the DNS server for a particular NIC
+by <code>resolvectl dns [NIC_NAME] [DNS_IP]</code> command.</p>
+<p>Unfortunately for ProtonVpn that I am currently using, there are currently no clients designed with systemd-resolved in mind.
+Neither the official client nor the community-maintained cli-client handles DNS correctly (there is a <a href="https://github.com/Rafficer/linux-cli-community/pull/323">PR</a> for the community client though).</p>
 <h2 id="split-dns-is-useful-but-may-have-security-implications">Split DNS is useful but may have security implications</h2>
 <p>As far as DNS is concerned, you can either force a global DNS server or use a different one per link.</p>
-<p>The former is easier to manage but cause problems when using VPNs or connecting to public WIFI hotspots. The latter requires more configuration and may surprise you when you find that you are actually using another DNS server then the one you want.</p>
+<p>The former is easier to manage but cause problems when using VPNs or connecting to public WIFI hotspots.
+The latter requires more configuration and may surprise you when you find that you are actually using another
+DNS server then the one you want.</p>
 <h3 id="global-dns">Global DNS</h3>
-<p>To force a global DNS regardless of network connections. You can your systemd-resolved configuration file and specify global DNS servers and let it take precedence over NIC-specific settings (by setting <strong>Domains=~.</strong>). Without <strong>Domains=~.</strong> the global setting will be considered a fallback instead.</p>
+<p>To force a global DNS regardless of network connections. You can your systemd-resolved configuration file
+and specify global DNS servers and let it take precedence over NIC-specific settings (by setting <strong>Domains=~.</strong>). Without <strong>Domains=~.</strong>
+the global setting will be considered a fallback instead.</p>
 <pre><code>[Resolve]
 DNS=XX.XX.XX.XX YY.YY.YY.YY
 Domains=~.
 </code></pre>
-<p>Beware that there is no way to change the global setting on the fly using the <code>resolvectl</code> command. You will have to edit the config file and restart systemd-resolved for changes to take effect.</p>
+<p>Beware that there is no way to change the global setting on the fly using the <code>resolvectl</code> command. You will have to edit the config file
+and restart systemd-resolved for changes to take effect.</p>
 <h3 id="split-dns">Split DNS</h3>
-<p>Split DNS is “the correct way” to use systemd-resolved. You can specify a global (fallback) DNS (without <strong>Domains=~.</strong>) and disable link-specific DNS settings in NetworkManager settings for connections that you want your global setting to take effect.</p>
-<p>Caveat: in NetworkManager, DNS by DHCP is enabled by default. I would advise you to check your DNS resolver configuration using <code>resolvectl status</code> everytime you connect to a new network as the DHCP server might give you a DNS server that you do not trust.</p>
+<p>Split DNS is “the correct way” to use systemd-resolved. You can specify a global (fallback) DNS (without <strong>Domains=~.</strong>) and disable
+link-specific DNS settings in NetworkManager settings for connections that you want your global setting to take effect.</p>
+<p>Caveat: in NetworkManager, DNS by DHCP is enabled by default. I would advise you to check your DNS resolver configuration using
+<code>resolvectl status</code> everytime you connect to a new network as the DHCP server might give you a DNS server that you do not trust.</p>
   </section>
 </article>
 ]]></description>
@@ -79,18 +269,30 @@ Domains=~.
     
   </section>
   <section>
-    <p>You might have heard of the <a href="https://www.fpcomplete.com/blog/2017/06/readert-design-pattern/">ReaderT design pattern</a> in Haskell. It is a good way to provide global capabilities, such as logging and database access to your application. In short, the code of your application lives inside <code>type App = ReaderT Env IO</code> monad where <code>Env</code> is a record containing some global functions and variables (IORef, MVar…).</p>
-<p>Yes, global mutable states! How terrifying in the nice and pure Haskell world! Luckily, you can create typeclasses for each capabilities you encapsulated and program in mtl-style to recover some level of purity.</p>
+    <p>You might have heard of the <a href="https://www.fpcomplete.com/blog/2017/06/readert-design-pattern/">ReaderT design pattern</a> in Haskell.
+It is a good way to provide global capabilities, such as logging
+and database access to your application. In short, the code of your application lives inside
+<code>type App = ReaderT Env IO</code> monad where <code>Env</code> is a record containing
+some global functions and variables (IORef, MVar…).</p>
+<p>Yes, global mutable states! How terrifying in the nice and pure Haskell world!
+Luckily, you can create typeclasses for each capabilities you encapsulated
+and program in mtl-style to recover some level of purity.</p>
 <p>But why does it use IORef when we have StateT? The article argues that</p>
-<ol>
+<ol type="1">
 <li>You lose your state when encountering runtime exception</li>
 <li>Having the entire app living inside StateT is no better than explicitly using mutables</li>
 <li>StateT does not play well with concurrency</li>
 </ol>
 <p>Let me show you another reason we prefer ReaderT with IORef over StateT.</p>
 <h2 id="thread-your-monad-through-an-io-hole">Thread your monad through an IO hole</h2>
-<p>When dealing with some low-level bindings to event-driven runtimes, you will inevitably encounter some functions that have type signatures like <code>(X -&gt; IO a) -&gt; IO b</code>. For example, <code>eventListener :: (Event -&gt; IO a) -&gt; IO EventListener</code> that creates an event listener from a event handler function.</p>
-<p>Notice the explicit use of <code>IO</code> in the first argument. There is no way to “lower” a function of <code>MonadIO m =&gt; Event -&gt; m a</code> to <code>Event -&gt; IO a</code>, which implies that you cannot use <code>App</code> monad in the event handler, right? Well, not exactly. If you have the full knowledge of the monad being a <code>ReaderT Env IO</code> (not using mtl-style), <code>runReaderT</code> can be used.</p>
+<p>When dealing with some low-level bindings to event-driven runtimes, you will inevitably
+encounter some functions that have type signatures like <code>(X -&gt; IO a) -&gt; IO b</code>.
+For example, <code>eventListener :: (Event -&gt; IO a) -&gt; IO EventListener</code> that creates an event
+listener from a event handler function.</p>
+<p>Notice the explicit use of <code>IO</code> in the first argument. There is no way to “lower” a function of
+<code>MonadIO m =&gt; Event -&gt; m a</code> to <code>Event -&gt; IO a</code>, which implies that you cannot use <code>App</code> monad
+in the event handler, right? Well, not exactly. If you have the full knowledge of the monad being
+a <code>ReaderT Env IO</code> (not using mtl-style), <code>runReaderT</code> can be used.</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ot">program ::</span> <span class="dt">App</span> ()</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>program <span class="ot">=</span> <span class="kw">do</span></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="op">...</span></span>
@@ -101,10 +303,19 @@ Domains=~.
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="ot">    handler ::</span> <span class="dt">Event</span> <span class="ot">-&gt;</span> <span class="dt">App</span> <span class="dt">Bool</span></span>
 <span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    handler ev <span class="ot">=</span> <span class="op">...</span></span></code></pre></div>
 <p>(There is a library called <code>unliftio</code> that do this for you in a more generic way)</p>
-<p>Simply passing <code>env</code> to <code>runReaderT</code> is enough. Remember that <code>Env</code> itself is immutable (it’s ReaderT after all), using it in any context is safe. Access to variables inside the event handler is proxied through <code>IORef</code> so that you correctly get the latest value. The whole process is the same as passing pointers to event handlers in C language. Of course if there is concurrency involved, you have to deal with them yourself (such as to use <code>MVar</code> or <code>TVar</code> instead of <code>IORef</code>).</p>
-<p>You cannot do this if it was <code>StateT</code>. If you call <code>evalStateT</code> and pass in the current state, in the handler you got only the copy of the state at the time you register that event listener. In fact, event-driven model and pure states don’t play well together at all!</p>
+<p>Simply passing <code>env</code> to <code>runReaderT</code> is enough. Remember that <code>Env</code> itself is immutable (it’s ReaderT after all),
+using it in any context is safe. Access to variables inside the event handler is proxied through <code>IORef</code> so that
+you correctly get the latest value. The whole process is the same as passing pointers to event handlers in C language.
+Of course if there is concurrency involved, you have to deal with them yourself
+(such as to use <code>MVar</code> or <code>TVar</code> instead of <code>IORef</code>).</p>
+<p>You cannot do this if it was <code>StateT</code>. If you call <code>evalStateT</code> and pass in the current state, in the handler you got
+only the copy of the state at the time you register that event listener. In fact, event-driven model and pure states
+don’t play well together at all!</p>
 <h2 id="dont-pretend-to-be-writing-pure-code">Don’t pretend to be writing pure code</h2>
-<p>The takeaway here is, write in imperative style if you are doing imperative things. If you want to write pure, functional code, use a library with a higher-level abstraction instead. If you have to deal with lower-level bindings, write in imperative style is usually easier than handcrafting an ad-hoc functional layer on top of it. After all, <a href="https://stackoverflow.com/questions/6622524/why-is-haskell-sometimes-referred-to-as-best-imperative-language">Haskell is the best imperative language</a>.</p>
+<p>The takeaway here is, write in imperative style if you are doing imperative things.
+If you want to write pure, functional code, use a library with a higher-level abstraction instead.
+If you have to deal with lower-level bindings, write in imperative style is usually easier than
+handcrafting an ad-hoc functional layer on top of it. After all, <a href="https://stackoverflow.com/questions/6622524/why-is-haskell-sometimes-referred-to-as-best-imperative-language">Haskell is the best imperative language</a>.</p>
   </section>
 </article>
 ]]></description>
@@ -122,9 +333,11 @@ Domains=~.
     
   </section>
   <section>
-    <p>Once I found myself in a situation where I have to alter the behavior of a Vue.js webpage that is not written by me. I managed to do that using a browser addon. The same method should apply to userscript manager (such as greasemonkey) as well.</p>
+    <p>Once I found myself in a situation where I have to alter the behavior of a Vue.js webpage that is not written by me.
+I managed to do that using a browser addon. The same method should apply to userscript manager (such as greasemonkey) as well.</p>
 <h2 id="explore-vues-internals-from-console">Explore Vue’s internals from console</h2>
-<p>For a reactive framework like Vue.js, manipulating DOM externally doesn’t do anything as DOM is merely the reflective display of the model. You will have to modify the underlaying javascript object to fulfill the goal. Fortunately, Vue’s thin layer of abstraction makes this kinds of hacking easy.</p>
+<p>For a reactive framework like Vue.js, manipulating DOM externally doesn’t do anything as DOM is merely the reflective display of the model.
+You will have to modify the underlaying javascript object to fulfill the goal. Fortunately, Vue’s thin layer of abstraction makes this kinds of hacking easy.</p>
 <p>Launch a browser console and have a try:</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co">// suppose '#app' is where you mount Vue to</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> vue <span class="op">=</span> <span class="bu">document</span><span class="op">.</span><span class="fu">getElementById</span>(<span class="st">'app'</span>)<span class="op">.</span><span class="at">__vue__</span><span class="op">;</span></span>
@@ -136,11 +349,16 @@ Domains=~.
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>vue<span class="op">.</span><span class="fu">$on</span>(<span class="bu">event</span><span class="op">,</span> fn)<span class="op">;</span></span>
 <span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co">// access component methods</span></span>
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>fstChild<span class="op">.</span><span class="fu">methodName</span>(arg1<span class="op">,</span> arg2)<span class="op">;</span></span></code></pre></div>
-<p>You can use most of these “$..”s as if you are writing vue. And component methods can be called directly as well. You can now do many things, modifying data, call component methods, accessing vuex storage and etc.</p>
-<p>If you want to go more low-level, you can have a look at properties and methods starting with underscore. Manipulating these requires having a deeper understanding of vue’s internals. If you wants to dig deep, you can have a look at the <a href="https://github.com/numbbbbb/read-vue-source-code">“Read Vue Source Code”</a> series.</p>
+<p>You can use most of these “$..”s as if you are writing vue. And component methods can be called directly as well.
+You can now do many things, modifying data, call component methods, accessing vuex storage and etc.</p>
+<p>If you want to go more low-level, you can have a look at properties and methods starting with underscore. Manipulating these
+requires having a deeper understanding of vue’s internals. If you wants to dig deep, you can have a look at
+the <a href="https://github.com/numbbbbb/read-vue-source-code">“Read Vue Source Code”</a> series.</p>
 <h2 id="code-injection">Code injection</h2>
-<p>Now you know how to manipulate the vue object. But you have no direct access to it because a browser extension’s <a href="https://developer.chrome.com/extensions/content_scripts#isolated_world">content script lives in an “isolated world”</a>.</p>
-<p>What you can do is to add a &lt;script&gt; element via your content script. Upon creation, code would be executed in the page’s context. You can then remove the element.</p>
+<p>Now you know how to manipulate the vue object. But you have no direct access to it because a browser extension’s
+<a href="https://developer.chrome.com/extensions/content_scripts#isolated_world">content script lives in an “isolated world”</a>.</p>
+<p>What you can do is to add a &lt;script&gt; element via your content script. Upon creation, code would be executed in the page’s context.
+You can then remove the element.</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> script <span class="op">=</span> <span class="bu">document</span><span class="op">.</span><span class="fu">createElement</span>(<span class="st">'script'</span>)<span class="op">;</span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>script<span class="op">.</span><span class="at">textContent</span> <span class="op">=</span></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="st">'let vue = document.getElementById(</span><span class="sc">\'</span><span class="st">app</span><span class="sc">\'</span><span class="st">);vue.$data.someData=12345;'</span><span class="op">;</span></span>
@@ -148,7 +366,8 @@ Domains=~.
 <span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>script<span class="op">.</span><span class="fu">remove</span>()<span class="op">;</span></span></code></pre></div>
 <p>Be aware the execution of injected code will be asynchronous (and usually parallel) with execution of content scripts.</p>
 <h2 id="returning-values-and-error-handling-from-pages-context">Returning values and error handling from page’s context</h2>
-<p>You can inject any code by creating &lt;script&gt; elements. But to communicate back to content scripts, you will need to utilize DOM events.</p>
+<p>You can inject any code by creating &lt;script&gt; elements. But to communicate back to content scripts, you will need to utilize
+DOM events.</p>
 <p>Report back from injected scripts:</p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co">/* get someData from vue model */</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="bu">window</span><span class="op">.</span><span class="fu">dispatchEvent</span>(<span class="kw">new</span> <span class="bu">CustomEvent</span>(<span class="st">'myEvent'</span><span class="op">,</span> {<span class="dt">detail</span><span class="op">:</span> someData}))<span class="op">;</span></span></code></pre></div>
@@ -173,29 +392,53 @@ Domains=~.
   </section>
   <section>
     <h2 id="problem-statement">Problem statement</h2>
-<p>Building up your collection of video and music feels good. But when you need to actually find THAT file, lying somewhere in your stack of files, you can only hope your memory doesn’t fail you.</p>
+<p>Building up your collection of video and music feels good. But when you need to actually find THAT file,
+lying somewhere in your stack of files, you can only hope your memory doesn’t fail you.</p>
 <p>So, you did the following …</p>
 <ul>
 <li>organize them into directories, by categories or whatever fancy scheme you come up with</li>
 <li>try to encode as much info into filename so that a file search would hit</li>
 </ul>
-<p>However, as your collection grows beyond terrabytes, these methods start to fail. You encounter more and more files that you cannot decide which directory it should go to. And file search becomes increasing slow. And these methods don’t work if your files are spanned across multiple drives, NASs or even some blu-ray discs.</p>
-<p>I had all of these headaches until I find <a href="https://git-annex.branchable.com">git-annex</a>. It solved all my problems regarding media file management altogether.</p>
+<p>However, as your collection grows beyond terrabytes, these methods start to fail.
+You encounter more and more files that you cannot decide which directory it should go to.
+And file search becomes increasing slow. And these methods don’t work if your files are spanned across
+multiple drives, NASs or even some blu-ray discs.</p>
+<p>I had all of these headaches until I find <a href="https://git-annex.branchable.com">git-annex</a>.
+It solved all my problems regarding media file management altogether.</p>
 <h2 id="how-git-anenx-solves-it">How git-anenx solves it</h2>
 <p>(For implementation detail, see <a href="https://git-annex.branchable.com/how_it_works/">https://git-annex.branchable.com/how_it_works/</a>)</p>
 <h3 id="files-across-multiple-storage">Files across multiple storage</h3>
-<p>When you add a file using <code>git annex add</code> command, only the metainfo will enter the repository. The actual file will be moved into <code>.git</code> while a symlink is created in its original location. When you push or pull, only the metainfo and symlink is transfered.</p>
-<p>Now you can clone this repository everywhere where you need access to your files. You can access all file’s metainfo(symlink) while the actual file may be on different remote sites. When you need the content of the file,‘git annex get’ command automatically retrieves the file for you as long as you are connected to that remote. You can use <code>git annex drop</code> to remove the local file and git-annex guarantees that at least one site will have the actual content. You can even configure git-annex to automatically keep some number of backup copies across different sites.</p>
+<p>When you add a file using <code>git annex add</code> command, only the metainfo will enter the repository.
+The actual file will be moved into <code>.git</code> while a symlink is created in its original location.
+When you push or pull, only the metainfo and symlink is transfered.</p>
+<p>Now you can clone this repository everywhere where you need access to your files. You can access all file’s
+metainfo(symlink) while the actual file may be on different remote sites. When you need the content of
+the file,‘git annex get’ command automatically retrieves the file for you as long as you are connected to that remote.
+You can use <code>git annex drop</code> to remove the local file and git-annex guarantees that at least one site will
+have the actual content. You can even configure git-annex to automatically keep some number of backup copies
+across different sites.</p>
 <h3 id="metadata-management">Metadata management</h3>
-<p>Admit it. Filenames are just not enough. Sadly, filesystems today are directory-based rather than tag-based. NTFS supports limited metadata management for media files but Windows sucks. There are also external solutions storing metadata in databases or in propriatary formats, but I cannot depend on these softwares outliving my data.</p>
-<p>With git-annex you can ditch them all. You can add adding metadata and tags to any file within the repository. And the format is open and stable.</p>
+<p>Admit it. Filenames are just not enough. Sadly, filesystems today are directory-based rather than tag-based.
+NTFS supports limited metadata management for media files but Windows sucks. There are also external solutions
+storing metadata in databases or in propriatary formats, but I cannot depend on these softwares outliving my data.</p>
+<p>With git-annex you can ditch them all. You can add adding metadata and tags to any file within the repository.
+And the format is open and stable.</p>
 <h2 id="my-git-annex-setup">My git-annex setup</h2>
-<p>I created a single repository named “Annex” to manage all my media files. They are stored in two NAS home servers and also one HDD attached on my main PC. On NAS I used nfs for file sharing as samba does not support symbolic links.</p>
+<p>I created a single repository named “Annex” to manage all my media files. They are stored in two NAS home servers
+and also one HDD attached on my main PC. On NAS I used nfs for file sharing as samba does not support symbolic links.</p>
 <p>I also make cold backups using read-only bluray discs. Check <a href="https://git-annex.branchable.com/forum/How_do_I_backup_my_data_to_blue_ray_disks__63__/">this</a> page.</p>
-<p>I am trying to attach sane amount of metadata to my files. I tag the name of person the video is related to, song title of music videos and etc… I also attach field “onair” to store the date when the clip go public as git-annex supports searching using comparison operators (&lt;, &lt;=, &gt;, &gt;=).</p>
-<p>In the migration process, I made a python script to retrieve as many info encoded in the filename. However there are many files that I did not properly name so I have to manually tag them. But the earlier you bite the bullet the less pain you will have in the long run.</p>
+<p>I am trying to attach sane amount of metadata to my files. I tag the name of person the video is related to, song title
+of music videos and etc… I also attach field “onair” to store the date when the clip go public as git-annex supports
+searching using comparison operators (&lt;, &lt;=, &gt;, &gt;=).</p>
+<p>In the migration process, I made a python script to retrieve as many info encoded in the filename. However there are
+many files that I did not properly name so I have to manually tag them. But the earlier you bite the bullet the less
+pain you will have in the long run.</p>
 <h2 id="the-next-step">The next step</h2>
-<p>Sadly, there seems to be no file manager integration. Ideally it should automatically retrieve the content of a file when you open a symlink in a git-annex repository. As for now, you will have to use the commandline to do it manually. I am planning on writing an emacs package to enhance dired-mode (I am using emacs as my file manager now) if I have some time. There is existing packages (git-annex.el) though they are not fully automatic and lacks functionalities regarding tagging and searching.</p>
+<p>Sadly, there seems to be no file manager integration. Ideally it should automatically retrieve
+the content of a file when you open a symlink in a git-annex repository. As for now, you will have to use
+the commandline to do it manually. I am planning on writing an emacs package to enhance dired-mode (I am using emacs
+as my file manager now) if I have some time. There is existing packages (git-annex.el) though they are not fully
+automatic and lacks functionalities regarding tagging and searching.</p>
   </section>
 </article>
 ]]></description>

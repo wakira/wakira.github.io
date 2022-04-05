@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Pure Trade Offs - Recording my progress porting gi-gtk-declarative to gtk4</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax_highlight.css" />
+  </head>
+  <body>
+    <header>
+      <div class="logo">
+        <a href="../">Pure Trade-offs</a>
+      </div>
+      <nav>
+        <a href="../blogs.html">blogs</a>
+<a href="../projects.html">projects</a>
+<a href="../about.html">about</a>
+
+        <a target="_blank" href="../rss.xml">rss</a>
+      </nav>
+    </header>
+
+    <main role="main">
+      <h1>Recording my progress porting gi-gtk-declarative to gtk4</h1>
+<article>
+  <section class="header">
+    Posted on February  1, 2022
+    
+  </section>
+  <section>
+    <p>This blog post is used to track my progress in porting <a href="https://hackage.haskell.org/package/gi-gtk-declarative">gi-gtk-declarative</a> to Gtk4.</p>
+<h2 id="understand-the-shadow-state-tree"><span class="done DONE">DONE</span> understand the shadow state tree</h2>
+<h2 id="deal-with-the-removal-of-isbin-and-iscontainer-class"><span class="todo TODO">TODO</span> deal with the removal of IsBin and IsContainer class</h2>
+<h2 id="removal-of-destroywidget">removal of destroyWidget</h2>
+<h2 id="removal-of-childstates">removal of ChildStates</h2>
+<h2 id="paned">Paned</h2>
+<p>Gtk3: <a href="https://docs.gtk.org/gtk3/class.Paned.html">https://docs.gtk.org/gtk3/class.Paned.html</a>
+Gtk4: <a href="https://docs.gtk.org/gtk4/class.Paned.html">https://docs.gtk.org/gtk4/class.Paned.html</a></p>
+<h2 id="call-label-function-in-instances">call label function in instances</h2>
+<p>in Data.GI.Base</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ot">get ::</span> <span class="kw">forall</span> info attr obj result m<span class="op">.</span> (<span class="dt">AttrGetC</span> info obj attr result, <span class="dt">MonadIO</span> m) <span class="ot">=&gt;</span> obj <span class="ot">-&gt;</span> <span class="dt">AttrLabelProxy</span> (<span class="ot">attr ::</span> <span class="dt">Symbol</span>) <span class="ot">-&gt;</span> m result </span></code></pre></div>
+<p>also a possible example from Attributes.hs</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- | The attribute GADT represent a supported attribute for a declarative</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="co">-- widget. This extends the regular notion of GTK+ attributes to also include</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co">-- event handling and CSS classes.</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Attribute</span> widget event <span class="kw">where</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="co">-- | An attribute/value mapping for a declarative widget. The</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  <span class="co">-- 'GI.AttrLabelProxy' is parameterized by 'attr', which represents the</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  <span class="co">-- GTK-defined attribute name. The underlying GI object needs to support</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  <span class="co">-- the /construct/, /get/, and /set/ operations for the given attribute.</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  (<span class="op">:=</span>)</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="ot">    ::</span>(<span class="dt">GI.AttrOpAllowed</span> <span class="dt">'GI.AttrConstruct</span> info widget</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>      , <span class="dt">GI.AttrOpAllowed</span> <span class="dt">'GI.AttrSet</span> info widget</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>      , <span class="dt">GI.AttrGetC</span> info widget attr getValue</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>      , <span class="dt">GI.AttrSetTypeConstraint</span> info setValue</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>      , <span class="dt">KnownSymbol</span> attr</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>      , <span class="dt">Typeable</span> attr</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>      , <span class="dt">Eq</span> setValue</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>      , <span class="dt">Typeable</span> setValue</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>   <span class="ot">=&gt;</span> <span class="dt">GI.AttrLabelProxy</span> (<span class="ot">attr ::</span> <span class="dt">Symbol</span>) <span class="ot">-&gt;</span> setValue <span class="ot">-&gt;</span> <span class="dt">Attribute</span> widget event</span></code></pre></div>
+<p>AttrSetC -&gt; AttrSetTypeConstraint -&gt; IsWidget</p>
+<p>so we need IsWidget in the context of Bin child</p>
+<p>seems that GHC cannot infer it?
+is it because of Widget and fromWidget?</p>
+  </section>
+</article>
+
+    </main>
+
+    <footer>
+      <div class="footer-links">
+        <a href="https://matrix.to/#/@autrim64:matrix.a64.work">matrix</a>
+        <a href="https://github.com/wakira">github</a>
+        <a href="https://www.linkedin.com/in/sheng-wang-3b413a91/">linkedin</a>
+        <a href="mailto:sheng@a64.work">mail</a>
+        <a target="_blank" href="../pgp/ShengWang.asc">pgp</a>
+      </div>
+      <div>
+        Built using
+        <a href="http://jaspervdj.be/hakyll">Hakyll</a>
+      </div>
+    </footer>
+  </body>
+</html>
