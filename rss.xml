@@ -133,7 +133,76 @@ we can apply MaybeT moand transformer over the ST monad.</p>
   </section>
   <section>
     <p>This blog post is used to track my progress in porting <a href="https://hackage.haskell.org/package/gi-gtk-declarative">gi-gtk-declarative</a> to Gtk4.</p>
-<h2 id="understand-the-shadow-state-tree"><span class="done DONE">DONE</span> understand the shadow state tree</h2>
+<h2 id="understand-how-gi-gtk-declarative-works"><span class="todo TODO">TODO</span> Understand how gi-gtk-declarative works</h2>
+<h3 id="the-overall-architecture"><span class="todo TODO">TODO</span> The overall architecture</h3>
+<h4 id="terminology">Terminology</h4>
+<p>The difference between “Widget” and “widget”</p>
+<h4 id="eventsource">EventSource</h4>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> <span class="dt">EventSource</span> widget <span class="kw">where</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  subscribe</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ot">    ::</span> widget event     <span class="co">-- ^ Declarative widget with event handlers.</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="ot">-&gt;</span> <span class="dt">SomeState</span>        <span class="co">-- ^ State of rendered widget tree.</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    <span class="ot">-&gt;</span> (event <span class="ot">-&gt;</span> <span class="dt">IO</span> ()) <span class="co">-- ^ Event callback, invoked on each emitted event until</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>                        <span class="co">-- the 'Subscription' is cancelled, or widget is otherwise</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>                        <span class="co">-- destroyed.</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    <span class="ot">-&gt;</span> <span class="dt">IO</span> <span class="dt">Subscription</span>  <span class="co">-- ^ A 'Subscription' is returned, which can be cancelled.</span></span></code></pre></div>
+<h4 id="patchable"><span class="todo TODO">TODO</span> Patchable</h4>
+<h4 id="the-widget-wrapper-and-fromwidget-class">The Widget wrapper and FromWidget class</h4>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Widget</span> event <span class="kw">where</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">Widget</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="ot">    ::</span>( <span class="dt">Typeable</span> widget</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>       , <span class="dt">Patchable</span> widget  <span class="co">-- ^ widget is Patchable</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>       , <span class="dt">Functor</span> widget</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>       , <span class="dt">EventSource</span> widget <span class="co">-- ^ widget is EventSource</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>       )</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    <span class="ot">=&gt;</span> widget event</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    <span class="ot">-&gt;</span> <span class="dt">Widget</span> event</span></code></pre></div>
+<p>Functor is defined for Widget</p>
+<p>The default Patchable implementation delegates creation and patching to the underlying widget.
+The default EventSource implmentation delegates subscription to the underlying widget.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> <span class="dt">FromWidget</span> widget target <span class="kw">where</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="ot">  fromWidget ::</span> widget event <span class="ot">-&gt;</span> target event</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> ( <span class="dt">Typeable</span> parent</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>         , <span class="dt">Typeable</span> child</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>         , <span class="dt">Patchable</span> (parent child)</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>         , <span class="dt">Functor</span> (parent child)</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>         , <span class="dt">EventSource</span> (parent child)</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>         )</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>         <span class="ot">=&gt;</span> <span class="dt">FromWidget</span> (parent child) <span class="dt">Widget</span> <span class="kw">where</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>  fromWidget <span class="ot">=</span> <span class="dt">Widget</span></span></code></pre></div>
+<p>FromWidget a b means that you can convert from (a event) to (b event). You can convert from unwrapped widget to wrapped widget or vice versa.
+The instance defined here provides the default implementation to wrap a widget.</p>
+<ol>
+<li><p><span class="todo TODO">TODO</span> What is this (parent child) thing???</p>
+<p>Firstly, remember that Typeable is polykinded.</p>
+<p>Notice that (parent child) has kind <code class="verbatim">* -&gt; *</code>, we can guess it’s like (parent child) ~ widget</p>
+<p>The purpose of using <code class="verbatim">(parent child)</code> instead of <code class="verbatim">widget</code> is that we preserve the knowledge that
+both parent and child is Typeable?</p></li>
+</ol>
+<h4 id="single-widget"><span class="todo TODO">TODO</span> Single Widget</h4>
+<p>use widget smart constructor from SingleWidget.hs</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">SingleWidget</span> widget event <span class="kw">where</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">SingleWidget</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="ot">    ::</span>(<span class="dt">Typeable</span> widget, <span class="dt">Gtk.IsWidget</span> widget, <span class="dt">Functor</span> (<span class="dt">Attribute</span> widget))</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    <span class="ot">=&gt;</span> (<span class="dt">Gtk.ManagedPtr</span> widget <span class="ot">-&gt;</span> widget)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    <span class="ot">-&gt;</span> <span class="dt">Vector</span> (<span class="dt">Attribute</span> widget event)</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    <span class="ot">-&gt;</span> <span class="dt">SingleWidget</span> widget event</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  <span class="co">-- | Construct a /leaf/ widget, i.e. one without any children.</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>  widget</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="ot">    ::</span> ( <span class="dt">Typeable</span> widget</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>       , <span class="dt">Gtk.IsWidget</span> widget</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>       , <span class="dt">FromWidget</span> (<span class="dt">SingleWidget</span> widget) target</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>       )</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    <span class="ot">=&gt;</span> (<span class="dt">Gtk.ManagedPtr</span> widget <span class="ot">-&gt;</span> widget) <span class="co">-- ^ A widget constructor from the underlying gi-gtk library.</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    <span class="ot">-&gt;</span> <span class="dt">Vector</span> (<span class="dt">Attribute</span> widget event)   <span class="co">-- ^ List of 'Attribute's.</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>    <span class="ot">-&gt;</span> target event                      <span class="co">-- ^ The target, whose type is decided by 'FromWidget'.</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>  widget ctor <span class="ot">=</span> fromWidget <span class="op">.</span> <span class="dt">SingleWidget</span> ctor</span></code></pre></div>
+<p>The patchable instance</p>
+<h4 id="attribute-is-from-gi.gtk.attributes">Attribute is from GI.GTK.Attributes</h4>
+<h3 id="understand-the-shadow-state-tree"><span class="todo TODO">TODO</span> understand the shadow state tree</h3>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- </span><span class="al">TODO</span><span class="co">: related code...</span></span></code></pre></div>
 <h2 id="deal-with-the-removal-of-isbin-and-iscontainer-class"><span class="todo TODO">TODO</span> deal with the removal of IsBin and IsContainer class</h2>
 <h2 id="removal-of-destroywidget">removal of destroyWidget</h2>
 <h2 id="removal-of-childstates">removal of ChildStates</h2>
@@ -142,27 +211,27 @@ we can apply MaybeT moand transformer over the ST monad.</p>
 Gtk4: <a href="https://docs.gtk.org/gtk4/class.Paned.html">https://docs.gtk.org/gtk4/class.Paned.html</a></p>
 <h2 id="call-label-function-in-instances">call label function in instances</h2>
 <p>in Data.GI.Base</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ot">get ::</span> <span class="kw">forall</span> info attr obj result m<span class="op">.</span> (<span class="dt">AttrGetC</span> info obj attr result, <span class="dt">MonadIO</span> m) <span class="ot">=&gt;</span> obj <span class="ot">-&gt;</span> <span class="dt">AttrLabelProxy</span> (<span class="ot">attr ::</span> <span class="dt">Symbol</span>) <span class="ot">-&gt;</span> m result </span></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ot">get ::</span> <span class="kw">forall</span> info attr obj result m<span class="op">.</span> (<span class="dt">AttrGetC</span> info obj attr result, <span class="dt">MonadIO</span> m) <span class="ot">=&gt;</span> obj <span class="ot">-&gt;</span> <span class="dt">AttrLabelProxy</span> (<span class="ot">attr ::</span> <span class="dt">Symbol</span>) <span class="ot">-&gt;</span> m result</span></code></pre></div>
 <p>also a possible example from Attributes.hs</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- | The attribute GADT represent a supported attribute for a declarative</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="co">-- widget. This extends the regular notion of GTK+ attributes to also include</span></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co">-- event handling and CSS classes.</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Attribute</span> widget event <span class="kw">where</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="co">-- | An attribute/value mapping for a declarative widget. The</span></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  <span class="co">-- 'GI.AttrLabelProxy' is parameterized by 'attr', which represents the</span></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  <span class="co">-- GTK-defined attribute name. The underlying GI object needs to support</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  <span class="co">-- the /construct/, /get/, and /set/ operations for the given attribute.</span></span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  (<span class="op">:=</span>)</span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="ot">    ::</span>(<span class="dt">GI.AttrOpAllowed</span> <span class="dt">'GI.AttrConstruct</span> info widget</span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>      , <span class="dt">GI.AttrOpAllowed</span> <span class="dt">'GI.AttrSet</span> info widget</span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>      , <span class="dt">GI.AttrGetC</span> info widget attr getValue</span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>      , <span class="dt">GI.AttrSetTypeConstraint</span> info setValue</span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>      , <span class="dt">KnownSymbol</span> attr</span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>      , <span class="dt">Typeable</span> attr</span>
-<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>      , <span class="dt">Eq</span> setValue</span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>      , <span class="dt">Typeable</span> setValue</span>
-<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>      )</span>
-<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>   <span class="ot">=&gt;</span> <span class="dt">GI.AttrLabelProxy</span> (<span class="ot">attr ::</span> <span class="dt">Symbol</span>) <span class="ot">-&gt;</span> setValue <span class="ot">-&gt;</span> <span class="dt">Attribute</span> widget event</span></code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- | The attribute GADT represent a supported attribute for a declarative</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="co">-- widget. This extends the regular notion of GTK+ attributes to also include</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="co">-- event handling and CSS classes.</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Attribute</span> widget event <span class="kw">where</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  <span class="co">-- | An attribute/value mapping for a declarative widget. The</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>  <span class="co">-- 'GI.AttrLabelProxy' is parameterized by 'attr', which represents the</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>  <span class="co">-- GTK-defined attribute name. The underlying GI object needs to support</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>  <span class="co">-- the /construct/, /get/, and /set/ operations for the given attribute.</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>  (<span class="op">:=</span>)</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="ot">    ::</span>(<span class="dt">GI.AttrOpAllowed</span> <span class="dt">'GI.AttrConstruct</span> info widget</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>      , <span class="dt">GI.AttrOpAllowed</span> <span class="dt">'GI.AttrSet</span> info widget</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>      , <span class="dt">GI.AttrGetC</span> info widget attr getValue</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>      , <span class="dt">GI.AttrSetTypeConstraint</span> info setValue</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>      , <span class="dt">KnownSymbol</span> attr</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>      , <span class="dt">Typeable</span> attr</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>      , <span class="dt">Eq</span> setValue</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>      , <span class="dt">Typeable</span> setValue</span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>   <span class="ot">=&gt;</span> <span class="dt">GI.AttrLabelProxy</span> (<span class="ot">attr ::</span> <span class="dt">Symbol</span>) <span class="ot">-&gt;</span> setValue <span class="ot">-&gt;</span> <span class="dt">Attribute</span> widget event</span></code></pre></div>
 <p>AttrSetC -&gt; AttrSetTypeConstraint -&gt; IsWidget</p>
 <p>so we need IsWidget in the context of Bin child</p>
 <p>seems that GHC cannot infer it?
