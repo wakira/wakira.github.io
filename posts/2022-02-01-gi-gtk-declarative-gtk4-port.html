@@ -16,6 +16,7 @@
       <nav>
         <a href="../blogs.html">blogs</a>
 <a href="../projects.html">projects</a>
+<a target="_blank" href="https://status.a64.work">status</a>
 <a href="../about.html">about</a>
 
         <a target="_blank" href="../rss.xml">rss</a>
@@ -44,7 +45,6 @@
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>                        <span class="co">-- the 'Subscription' is cancelled, or widget is otherwise</span></span>
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>                        <span class="co">-- destroyed.</span></span>
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    <span class="ot">-&gt;</span> <span class="dt">IO</span> <span class="dt">Subscription</span>  <span class="co">-- ^ A 'Subscription' is returned, which can be cancelled.</span></span></code></pre></div>
-<h4 id="patchable"><span class="todo TODO">TODO</span> Patchable</h4>
 <h4 id="the-widget-wrapper-and-fromwidget-class">The Widget wrapper and FromWidget class</h4>
 <div class="sourceCode" id="cb2"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Widget</span> event <span class="kw">where</span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">Widget</span></span>
@@ -100,7 +100,39 @@ both parent and child is Typeable?</p></li>
 <p>The patchable instance</p>
 <h4 id="attribute-is-from-gi.gtk.attributes">Attribute is from GI.GTK.Attributes</h4>
 <h3 id="understand-the-shadow-state-tree"><span class="todo TODO">TODO</span> understand the shadow state tree</h3>
-<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- </span><span class="al">TODO</span><span class="co">: related code...</span></span></code></pre></div>
+<p>Patchable can be diffed to produce a patch
+a patch is IO SomeState</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- | A 'Data.Dynamic.Dynamic'-like container of a 'StateTree' value.</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">SomeState</span> <span class="kw">where</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">SomeState</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="ot">    ::</span> ( <span class="dt">Gtk.IsWidget</span> widget</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>      , <span class="dt">Typeable</span> widget</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>      , <span class="dt">Typeable</span> customState</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    <span class="ot">=&gt;</span> <span class="dt">StateTree</span> stateType widget child event customState</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    <span class="ot">-&gt;</span> <span class="dt">SomeState</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="co">-- | The types of state trees that are available, matching the types</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="co">-- of GTK+ widgets (single widget, bin, and container.)</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">StateType</span> <span class="ot">=</span> <span class="dt">WidgetState</span> <span class="op">|</span> <span class="dt">BinState</span> <span class="op">|</span> <span class="dt">ContainerState</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a><span class="co">-- | A state tree for a specific 'widget'. This is built up recursively</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a><span class="co">-- to contain child state trees, for bin and container child widgets.</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">StateTree</span> (<span class="ot">stateType ::</span> <span class="dt">StateType</span>) widget child event customState <span class="kw">where</span></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>  <span class="dt">StateTreeWidget</span></span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a><span class="ot">    ::</span> <span class="op">!</span>(<span class="dt">StateTreeNode</span> widget event customState)</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>    <span class="ot">-&gt;</span> <span class="dt">StateTree</span> <span class="dt">'WidgetState</span> widget child event customState</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>  <span class="dt">StateTreeBin</span></span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a><span class="ot">    ::</span> <span class="op">!</span>(<span class="dt">StateTreeNode</span> widget event customState)</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>    <span class="ot">-&gt;</span> <span class="dt">SomeState</span></span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>    <span class="ot">-&gt;</span> <span class="dt">StateTree</span> <span class="dt">'BinState</span> widget child event customState</span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>  <span class="dt">StateTreeContainer</span></span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a><span class="ot">    ::</span> ( <span class="dt">Gtk.IsContainer</span> widget</span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>       , <span class="dt">IsContainer</span> widget child</span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>       )</span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a>    <span class="ot">=&gt;</span> <span class="op">!</span>(<span class="dt">StateTreeNode</span> widget event customState)</span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a>    <span class="ot">-&gt;</span> <span class="dt">Vector</span> <span class="dt">SomeState</span></span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a>    <span class="ot">-&gt;</span> <span class="dt">StateTree</span> <span class="dt">'ContainerState</span> widget child event customState</span></code></pre></div>
 <h2 id="deal-with-the-removal-of-isbin-and-iscontainer-class"><span class="todo TODO">TODO</span> deal with the removal of IsBin and IsContainer class</h2>
 <h2 id="removal-of-destroywidget">removal of destroyWidget</h2>
 <h2 id="removal-of-childstates">removal of ChildStates</h2>

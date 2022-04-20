@@ -3,14 +3,14 @@
     xmlns:dc="http://purl.org/dc/elements/1.1/">
     <channel>
         <title>Pure Trade-offs</title>
-        <link>https://site.a64.work</link>
+        <link>https://a64.work</link>
         <description><![CDATA[Pursuing pureness without being autistic]]></description>
-        <atom:link href="https://site.a64.work/rss.xml" rel="self"
+        <atom:link href="https://a64.work/rss.xml" rel="self"
                    type="application/rss+xml" />
         <lastBuildDate>Sat, 02 Apr 2022 00:00:00 UT</lastBuildDate>
         <item>
     <title>Notes regarding dynamic programming and performance in Haskell</title>
-    <link>https://site.a64.work/posts/2022-04-02-dynamic-programming-performance-haskell.html</link>
+    <link>https://a64.work/posts/2022-04-02-dynamic-programming-performance-haskell.html</link>
     <description><![CDATA[<h1>Notes regarding dynamic programming and performance in Haskell</h1>
 <article>
   <section class="header">
@@ -119,12 +119,12 @@ we can apply MaybeT moand transformer over the ST monad.</p>
 </article>
 ]]></description>
     <pubDate>Sat, 02 Apr 2022 00:00:00 UT</pubDate>
-    <guid>https://site.a64.work/posts/2022-04-02-dynamic-programming-performance-haskell.html</guid>
+    <guid>https://a64.work/posts/2022-04-02-dynamic-programming-performance-haskell.html</guid>
     <dc:creator>autrim64</dc:creator>
 </item>
 <item>
     <title>Recording my progress porting gi-gtk-declarative to gtk4</title>
-    <link>https://site.a64.work/posts/2022-02-01-gi-gtk-declarative-gtk4-port.html</link>
+    <link>https://a64.work/posts/2022-02-01-gi-gtk-declarative-gtk4-port.html</link>
     <description><![CDATA[<h1>Recording my progress porting gi-gtk-declarative to gtk4</h1>
 <article>
   <section class="header">
@@ -146,7 +146,6 @@ we can apply MaybeT moand transformer over the ST monad.</p>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>                        <span class="co">-- the 'Subscription' is cancelled, or widget is otherwise</span></span>
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>                        <span class="co">-- destroyed.</span></span>
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    <span class="ot">-&gt;</span> <span class="dt">IO</span> <span class="dt">Subscription</span>  <span class="co">-- ^ A 'Subscription' is returned, which can be cancelled.</span></span></code></pre></div>
-<h4 id="patchable"><span class="todo TODO">TODO</span> Patchable</h4>
 <h4 id="the-widget-wrapper-and-fromwidget-class">The Widget wrapper and FromWidget class</h4>
 <div class="sourceCode" id="cb2"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Widget</span> event <span class="kw">where</span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">Widget</span></span>
@@ -202,7 +201,39 @@ both parent and child is Typeable?</p></li>
 <p>The patchable instance</p>
 <h4 id="attribute-is-from-gi.gtk.attributes">Attribute is from GI.GTK.Attributes</h4>
 <h3 id="understand-the-shadow-state-tree"><span class="todo TODO">TODO</span> understand the shadow state tree</h3>
-<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- </span><span class="al">TODO</span><span class="co">: related code...</span></span></code></pre></div>
+<p>Patchable can be diffed to produce a patch
+a patch is IO SomeState</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- | A 'Data.Dynamic.Dynamic'-like container of a 'StateTree' value.</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">SomeState</span> <span class="kw">where</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">SomeState</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="ot">    ::</span> ( <span class="dt">Gtk.IsWidget</span> widget</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>      , <span class="dt">Typeable</span> widget</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>      , <span class="dt">Typeable</span> customState</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    <span class="ot">=&gt;</span> <span class="dt">StateTree</span> stateType widget child event customState</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    <span class="ot">-&gt;</span> <span class="dt">SomeState</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="co">-- | The types of state trees that are available, matching the types</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="co">-- of GTK+ widgets (single widget, bin, and container.)</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">StateType</span> <span class="ot">=</span> <span class="dt">WidgetState</span> <span class="op">|</span> <span class="dt">BinState</span> <span class="op">|</span> <span class="dt">ContainerState</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a><span class="co">-- | A state tree for a specific 'widget'. This is built up recursively</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a><span class="co">-- to contain child state trees, for bin and container child widgets.</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">StateTree</span> (<span class="ot">stateType ::</span> <span class="dt">StateType</span>) widget child event customState <span class="kw">where</span></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>  <span class="dt">StateTreeWidget</span></span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a><span class="ot">    ::</span> <span class="op">!</span>(<span class="dt">StateTreeNode</span> widget event customState)</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>    <span class="ot">-&gt;</span> <span class="dt">StateTree</span> <span class="dt">'WidgetState</span> widget child event customState</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>  <span class="dt">StateTreeBin</span></span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a><span class="ot">    ::</span> <span class="op">!</span>(<span class="dt">StateTreeNode</span> widget event customState)</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>    <span class="ot">-&gt;</span> <span class="dt">SomeState</span></span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>    <span class="ot">-&gt;</span> <span class="dt">StateTree</span> <span class="dt">'BinState</span> widget child event customState</span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>  <span class="dt">StateTreeContainer</span></span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a><span class="ot">    ::</span> ( <span class="dt">Gtk.IsContainer</span> widget</span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>       , <span class="dt">IsContainer</span> widget child</span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>       )</span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a>    <span class="ot">=&gt;</span> <span class="op">!</span>(<span class="dt">StateTreeNode</span> widget event customState)</span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a>    <span class="ot">-&gt;</span> <span class="dt">Vector</span> <span class="dt">SomeState</span></span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a>    <span class="ot">-&gt;</span> <span class="dt">StateTree</span> <span class="dt">'ContainerState</span> widget child event customState</span></code></pre></div>
 <h2 id="deal-with-the-removal-of-isbin-and-iscontainer-class"><span class="todo TODO">TODO</span> deal with the removal of IsBin and IsContainer class</h2>
 <h2 id="removal-of-destroywidget">removal of destroyWidget</h2>
 <h2 id="removal-of-childstates">removal of ChildStates</h2>
@@ -240,12 +271,12 @@ is it because of Widget and fromWidget?</p>
 </article>
 ]]></description>
     <pubDate>Tue, 01 Feb 2022 00:00:00 UT</pubDate>
-    <guid>https://site.a64.work/posts/2022-02-01-gi-gtk-declarative-gtk4-port.html</guid>
+    <guid>https://a64.work/posts/2022-02-01-gi-gtk-declarative-gtk4-port.html</guid>
     <dc:creator>autrim64</dc:creator>
 </item>
 <item>
     <title>The status of non-integer HiDPI scaling support in Linux</title>
-    <link>https://site.a64.work/posts/2021-12-24-status-of-hidpi-linux.html</link>
+    <link>https://a64.work/posts/2021-12-24-status-of-hidpi-linux.html</link>
     <description><![CDATA[<h1>The status of non-integer HiDPI scaling support in Linux</h1>
 <article>
   <section class="header">
@@ -278,12 +309,12 @@ requires only integer scaling.</p>
 </article>
 ]]></description>
     <pubDate>Fri, 24 Dec 2021 00:00:00 UT</pubDate>
-    <guid>https://site.a64.work/posts/2021-12-24-status-of-hidpi-linux.html</guid>
+    <guid>https://a64.work/posts/2021-12-24-status-of-hidpi-linux.html</guid>
     <dc:creator>autrim64</dc:creator>
 </item>
 <item>
     <title>Watch out for DNS leak when using VPN and systemd-resolved</title>
-    <link>https://site.a64.work/posts/2021-08-27-watch-out-for-dns-leak-using-vpn-and-systemd-resolved.html</link>
+    <link>https://a64.work/posts/2021-08-27-watch-out-for-dns-leak-using-vpn-and-systemd-resolved.html</link>
     <description><![CDATA[<h1>Watch out for DNS leak when using VPN and systemd-resolved</h1>
 <article>
   <section class="header">
@@ -325,12 +356,12 @@ link-specific DNS settings in NetworkManager settings for connections that you w
 </article>
 ]]></description>
     <pubDate>Fri, 27 Aug 2021 00:00:00 UT</pubDate>
-    <guid>https://site.a64.work/posts/2021-08-27-watch-out-for-dns-leak-using-vpn-and-systemd-resolved.html</guid>
+    <guid>https://a64.work/posts/2021-08-27-watch-out-for-dns-leak-using-vpn-and-systemd-resolved.html</guid>
     <dc:creator>autrim64</dc:creator>
 </item>
 <item>
     <title>Don't Pretend to be Pure</title>
-    <link>https://site.a64.work/posts/2020-10-23-dont-pretend-to-be-pure.html</link>
+    <link>https://a64.work/posts/2020-10-23-dont-pretend-to-be-pure.html</link>
     <description><![CDATA[<h1>Don't Pretend to be Pure</h1>
 <article>
   <section class="header">
@@ -389,12 +420,12 @@ handcrafting an ad-hoc functional layer on top of it. After all, <a href="https:
 </article>
 ]]></description>
     <pubDate>Fri, 23 Oct 2020 00:00:00 UT</pubDate>
-    <guid>https://site.a64.work/posts/2020-10-23-dont-pretend-to-be-pure.html</guid>
+    <guid>https://a64.work/posts/2020-10-23-dont-pretend-to-be-pure.html</guid>
     <dc:creator>autrim64</dc:creator>
 </item>
 <item>
     <title>Monkey-patching Vue.js from a Browser Addon</title>
-    <link>https://site.a64.work/posts/2020-09-23-monkey-patching-vuejs.html</link>
+    <link>https://a64.work/posts/2020-09-23-monkey-patching-vuejs.html</link>
     <description><![CDATA[<h1>Monkey-patching Vue.js from a Browser Addon</h1>
 <article>
   <section class="header">
@@ -447,12 +478,12 @@ DOM events.</p>
 </article>
 ]]></description>
     <pubDate>Wed, 23 Sep 2020 00:00:00 UT</pubDate>
-    <guid>https://site.a64.work/posts/2020-09-23-monkey-patching-vuejs.html</guid>
+    <guid>https://a64.work/posts/2020-09-23-monkey-patching-vuejs.html</guid>
     <dc:creator>autrim64</dc:creator>
 </item>
 <item>
     <title>Sane Media Files Management using Git-Annex</title>
-    <link>https://site.a64.work/posts/2020-08-17-sane-media-management.html</link>
+    <link>https://a64.work/posts/2020-08-17-sane-media-management.html</link>
     <description><![CDATA[<h1>Sane Media Files Management using Git-Annex</h1>
 <article>
   <section class="header">
@@ -512,7 +543,7 @@ automatic and lacks functionalities regarding tagging and searching.</p>
 </article>
 ]]></description>
     <pubDate>Mon, 17 Aug 2020 00:00:00 UT</pubDate>
-    <guid>https://site.a64.work/posts/2020-08-17-sane-media-management.html</guid>
+    <guid>https://a64.work/posts/2020-08-17-sane-media-management.html</guid>
     <dc:creator>autrim64</dc:creator>
 </item>
 
