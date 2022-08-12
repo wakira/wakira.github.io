@@ -7,8 +7,43 @@
         <description><![CDATA[Pursuing pureness without being autistic]]></description>
         <atom:link href="https://a64.work/rss.xml" rel="self"
                    type="application/rss+xml" />
-        <lastBuildDate>Sat, 02 Apr 2022 00:00:00 UT</lastBuildDate>
+        <lastBuildDate>Fri, 12 Aug 2022 00:00:00 UT</lastBuildDate>
         <item>
+    <title>Disable Cursor Speed Scaling in Gnome</title>
+    <link>https://a64.work/posts/2022-08-12-disable-cursor-speed-scaling-in-gnome.html</link>
+    <description><![CDATA[<h1>Disable Cursor Speed Scaling in Gnome</h1>
+<article>
+  <section class="header">
+    Posted on August 12, 2022
+    
+  </section>
+  <section>
+    <p>If you enable display scaling on Gnome for HiDPI monitors your cursor speed is also multiplied at the same scale.
+This is generally the preferred behavior for normal desktop usage or multiple monitor setups with different PPIs.
+But if you are a hardcore gamer you might want to fully utilize your mouse’s DPI and achieve 1-1 mouse input
+for the most precise cursor movement.</p>
+<p>Unfortunately there is no toggle to this behavior. So I made <a href="https://gist.github.com/wakira/6a9e4845ff99f5e419575e88e5d3a1ae">this simple patch</a> to mutter that you can apply to completly disable mouse scaling.
+Remember that to achieve 1-1 mouse input you have to also use a flat mouse acceleration profile.</p>
+<p>If you are using NixOS you can simply apply this overlay:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode nix"><code class="sourceCode nix"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>nixpkgs.overlays =</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="op">[</span> <span class="op">(</span><span class="va">self</span><span class="op">:</span> <span class="va">super</span><span class="op">:</span> <span class="op">{</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="va">gnome</span><span class="op">=</span> super.gnome.overrideScope' <span class="op">(</span><span class="va">selfScope</span><span class="op">:</span> <span class="va">superScope</span><span class="op">:</span> <span class="op">{</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>      <span class="va">mutter</span> <span class="op">=</span> superScope.mutter.overrideAttrs <span class="op">(</span><span class="va">oldAttrs</span><span class="op">:</span> <span class="kw">rec</span> <span class="op">{</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>        <span class="va">patches</span> <span class="op">=</span> oldAttrs.patches <span class="op">++</span> <span class="op">[(</span>fetchurl <span class="op">{</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>          <span class="va">url</span> <span class="op">=</span> <span class="st">&quot;https://gist.githubusercontent.com/wakira/6a9e4845ff99f5e419575e88e5d3a1ae/raw/a7d5d87df75634676af1c3d9705c25bf3c264200/disable-input-scaling.patch&quot;</span><span class="op">;</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>          <span class="va">sha256</span> <span class="op">=</span> <span class="st">&quot;01q6y4maav4z1518mh6xdzi8mhvx1baim5dr9y9cgma75i9pky6s&quot;</span><span class="op">;</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>        <span class="op">})];</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>      <span class="op">});</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    <span class="op">});</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  <span class="op">})]</span>;</span></code></pre></div>
+  </section>
+</article>
+]]></description>
+    <pubDate>Fri, 12 Aug 2022 00:00:00 UT</pubDate>
+    <guid>https://a64.work/posts/2022-08-12-disable-cursor-speed-scaling-in-gnome.html</guid>
+    <dc:creator>autrim64</dc:creator>
+</item>
+<item>
     <title>Notes regarding dynamic programming and performance in Haskell</title>
     <link>https://a64.work/posts/2022-04-02-dynamic-programming-performance-haskell.html</link>
     <description><![CDATA[<h1>Notes regarding dynamic programming and performance in Haskell</h1>
