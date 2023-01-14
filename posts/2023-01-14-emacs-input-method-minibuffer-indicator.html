@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Pure Trade Offs - Add an input method indicator to minibuffer in Emacs</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax_highlight.css" />
+  </head>
+  <body>
+    <header>
+      <div class="logo">
+        <a href="../">Pure Trade-offs</a>
+      </div>
+      <nav>
+        <a href="../blogs.html">blogs</a>
+<a href="../projects.html">projects</a>
+<a target="_blank" href="https://status.a64.work">status</a>
+<a href="../about.html">about</a>
+
+        <a target="_blank" href="../rss.xml">rss</a>
+      </nav>
+    </header>
+
+    <main role="main">
+      <h1>Add an input method indicator to minibuffer in Emacs</h1>
+<article>
+  <section class="header">
+    Posted on January 14, 2023
+    
+  </section>
+  <section>
+    <p>Do you notice that some Emacs’s built-in LEIM input methods have
+special display enhancements when used inside minibuffer?</p>
+<p>Normally the activation status of the input method is displayed in the
+buffer modeline. But there is no such indication mechanism for
+minibuffer inputs. Some input methods provided by <code>quail.el</code> such as
+<code>japanese</code> uses <code>post-command-hook</code> to append input method activation
+information to the end of minibuffer like this:</p>
+<pre><code>M-x user-inputed-string [Aあ]
+</code></pre>
+<p>While limited to a few built-in input methods, it’s really a
+convenient feature! Unfortunately the implementation is quite buggy
+and doesn’t work well with completion frameworks like <code>icomplete</code> that
+update the minibuffer dynamically.</p>
+<p>With only 14 lines of elisp code we can add this feature to any input
+method and it works with completion frameworks by utilizing overlays.</p>
+<pre class="elisp"><code>(defvar-local input-method-minibuffer-guidance--ov nil
+  &quot;Overlay showing the active input method&quot;)
+(defun input-method-minibuffer-activate-guidance ()
+  (when (minibufferp)
+    (unless input-method-minibuffer-guidance--ov
+      (setq input-method-minibuffer-guidance--ov (make-overlay (point-min) (point-min) nil nil t)))
+    (overlay-put input-method-minibuffer-guidance--ov 'after-string
+                 (format &quot;[%s] &quot; current-input-method-title))
+    ))
+(defun input-method-minibuffer-deactivate-guidance ()
+  (when (minibufferp)
+    (overlay-put input-method-minibuffer-guidance--ov 'after-string &quot;[-] &quot;)))
+(add-hook 'input-method-activate-hook #'input-method-minibuffer-activate-guidance)
+(add-hook 'input-method-deactivate-hook #'input-method-minibuffer-deactivate-guidance)
+</code></pre>
+<p>This is what it looks like with mozc.</p>
+<pre><code>[[Mozc]] M-x user-inputed-string
+</code></pre>
+  </section>
+</article>
+
+    </main>
+
+    <footer>
+      <div class="footer-links">
+        <a href="https://matrix.to/#/@autrim64:matrix.a64.work">matrix</a>
+        <a href="https://github.com/wakira">github</a>
+        <a href="https://www.linkedin.com/in/sheng-wang-3b413a91/">linkedin</a>
+        <a rel="me" href="https://fosstodon.org/@seiic">mastodon</a>
+        <a href="mailto:sheng@a64.work">mail</a>
+        <a target="_blank" href="../pgp/ShengWang.asc">pgp</a>
+      </div>
+      <div>
+        Built using
+        <a href="http://jaspervdj.be/hakyll">Hakyll</a>
+      </div>
+    </footer>
+  </body>
+</html>
